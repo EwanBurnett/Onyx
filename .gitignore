@@ -7,3 +7,4 @@
 /.vs/   # Visual Studio Cache
 /.idea/ # Android Studio Cache
 *.swp   # Swapfiles
+/.vs
