@@ -13,3 +13,6 @@ void Onyx::Shutdown() {
     printf("Terminating Onyx...\n"); 
 }
 
+int Onyx::GetOne() {
+    return 1; 
+}

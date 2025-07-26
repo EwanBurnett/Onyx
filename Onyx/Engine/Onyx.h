@@ -5,6 +5,8 @@ namespace Onyx {
 
     void Initialize(); 
     void Shutdown(); 
+
+    int GetOne(); 
 }
 
 #endif//__ONYX_H
