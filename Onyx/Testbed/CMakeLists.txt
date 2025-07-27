@@ -7,7 +7,14 @@
 
 project("Testbed")
 
-add_executable(${PROJECT_NAME} main.cpp)
+set(PLATFORM_SOURCES )
+
+# Conditionally compile resources.rc 
+if(WIN32)
+    set(PLATFORM_SOURCES ${PLATFORM_SOURCES} resources.rc)
+endif()
+
+add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES} main.cpp)
 
 # Ensure there is a build dependency on the main Engine library. 
 add_dependencies(${PROJECT_NAME} Onyx-Engine)
