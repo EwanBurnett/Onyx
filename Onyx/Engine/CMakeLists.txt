@@ -6,11 +6,12 @@
 
 project("Onyx-Engine")
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/Onyx/Version.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/Onyx/Version.h")
+
 add_library(${PROJECT_NAME} STATIC
-    "Onyx.h" 
-    "Onyx.cpp"
+    "include/Onyx/Onyx.h" 
+    "src/Onyx.cpp"
+    "include/Onyx/Version.h"
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/Version.h")
+target_include_directories(${PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
