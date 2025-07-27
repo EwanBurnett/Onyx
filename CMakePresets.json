@@ -10,27 +10,37 @@
             "name": "x64-Debug-MSVC",
             "hidden": false,
             "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/build/x64-Debug-MSVC/",
+            "binaryDir": "${sourceDir}/build/${hostSystemName}/x64-Debug-MSVC/",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_GENERATOR_PLATFORM": "x64"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
             }
         },
         {
             "name": "x64-Release-MSVC",
             "hidden": false,
             "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/build/x64-Release-MSVC/",
+            "binaryDir": "${sourceDir}/build/${hostSystemName}/x64-Release-MSVC/",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_GENERATOR_PLATFORM": "x64"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
             }
         },
         {
             "name": "Debug-Ninja",
             "hidden": false,
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Debug-Ninja/",
+            "binaryDir": "${sourceDir}/build/${hostSystemName}/Debug-Ninja/",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
@@ -39,7 +49,7 @@
             "name": "Release-Ninja",
             "hidden": false,
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/Release-Ninja/",
+            "binaryDir": "${sourceDir}/build/${hostSystemName}/Release-Ninja/",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
