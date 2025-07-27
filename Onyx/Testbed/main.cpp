@@ -1,5 +1,6 @@
 #include <cstdio> 
 #include <Onyx.h>
+#include <Version.h>
 
 int main() {
     Onyx::Initialize(); 
