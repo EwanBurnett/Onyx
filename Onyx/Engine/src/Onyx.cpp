@@ -4,8 +4,7 @@
 
 void Onyx::Initialize()
 {
-    printf("Initializing Onyx v%d.%d.%d [%s] <%s>\n",
-        Onyx::Verison::kMajor, Onyx::Verison::kMinor, Onyx::Verison::kIssue, Onyx::Verison::kGitBranch, Onyx::Verison::kGitHash);
+    printf("Initializing Onyx v%d.%d.%d [%s] <%s>\n", Onyx::Verison::kMajor, Onyx::Verison::kMinor, Onyx::Verison::kIssue, Onyx::Verison::kGitBranch, Onyx::Verison::kGitHash);
 
     //Testing Compile Definitions
 #if ONYX_ENABLE_VULKAN
@@ -13,8 +12,13 @@ void Onyx::Initialize()
 #endif
 
 #if ONYX_ENABLE_DX12
-    printf("DX12 Enabled!\n"); 
+    printf("DX12 Enabled!\n");
 #endif
+
+#if ONYX_ENABLE_IMGUI
+    printf("ImGui Enabled!\n");
+#endif
+
 }
 
 

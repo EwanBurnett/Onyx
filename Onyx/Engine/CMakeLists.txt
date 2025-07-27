@@ -53,7 +53,7 @@ else()
     set(ONYX_ENABLE_DX12 0)
 endif()
 
-# Build GLFW for Desktop only!
+# Desktop Only Libraries 
 if(WIN32 OR LINUX)
     # GLFW 
     FetchContent_Declare(
@@ -62,9 +62,17 @@ if(WIN32 OR LINUX)
         GIT_TAG 3.4
         FIND_PACKAGE_ARGS NAMES glfw
     )
-    FetchContent_MakeAvailable(glfw)
+     
+    # Native File Dialog Extended
+    FetchContent_Declare(
+        nfd
+        GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended
+        GIT_TAG v1.2.1
+    )
 
-    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw)
+    FetchContent_MakeAvailable(glfw nfd)
+
+    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw nfd)
 endif()
 
 
@@ -81,6 +89,7 @@ FetchContent_Declare(
 	assimp
 	GIT_REPOSITORY https://github.com/assimp/assimp.git
 	GIT_TAG v6.0.2
+    FIND_PACKAGE_ARGS NAMES assimp
 )
 
 # STB
@@ -94,6 +103,7 @@ FetchContent_Declare(
     slang
     GIT_REPOSITORY https://github.com/shader-slang/slang
     GIT_TAG v2025.13.1 
+    FIND_PACKAGE_ARGS NAMES slang
 )
 
 # OpenAL Soft
@@ -103,10 +113,86 @@ FetchContent_Declare(
 	GIT_TAG 1.24.3
 )
 
-
-# TODO: ImGui, ImGuizmo, ImPlot
-
 FetchContent_MakeAvailable(glm assimp stb slang openal_soft)
+
+# ImGui libraries
+if(ONYX_ENABLE_IMGUI)
+    message(STATUS "Building ImGui")
+    # ImGui
+    FetchContent_Declare(
+        imgui   
+        GIT_REPOSITORY https://github.com/ocornut/imgui.git
+        GIT_TAG v1.91.7
+    )
+
+    # ImGuizmo 
+    FetchContent_Declare(
+        imguizmo 
+        GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo
+    )
+
+    # ImPlot 
+    FetchContent_Declare(
+        implot 
+        GIT_REPOSITORY https://github.com/epezent/implot
+    )
+
+    FetchContent_MakeAvailable(imgui imguizmo implot)
+    
+    set(IMGUI_PLATFORM_SOURCES )
+    set(IMGUI_PLATFORM_LIBRARIES )
+
+    if(ONYX_ENABLE_VULKAN)
+        set(IMGUI_PLATFORM_SOURCES ${IMGUI_PLATFORM_SOURCES} "${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp")
+        set(IMGUI_PLATFORM_LIBRARIES ${IMGUI_PLATFORM_LIBRARIES} Vulkan::Vulkan)
+    endif()
+
+    if(ONYX_ENABLE_DX12)
+        set(IMGUI_PLATFORM_SOURCES ${IMGUI_PLATFORM_SOURCES} "${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp")
+        set(IMGUI_PLATFORM_LIBRARIES ${IMGUI_PLATFORM_LIBRARIES} d3d12.lib dxgi.lib dxguid.lib)
+    endif()
+
+    if(ONYX_PLATFORM_DESKTOP)
+        set(IMGUI_PLATFORM_SOURCES ${IMGUI_PLATFORM_SOURCES} "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp")
+        set(IMGUI_PLATFORM_LIBRARIES ${IMGUI_PLATFORM_LIBRARIES} glfw)
+    endif()
+
+    # Manually Build ImGui as a static library
+    add_library(imgui_lib 
+        "${imgui_SOURCE_DIR}/imgui.cpp" 
+        "${imgui_SOURCE_DIR}/imgui_demo.cpp"
+        "${imgui_SOURCE_DIR}/imgui_draw.cpp" 
+        "${imgui_SOURCE_DIR}/imgui_tables.cpp" 
+        "${imgui_SOURCE_DIR}/imgui_widgets.cpp" 
+        ${IMGUI_PLATFORM_SOURCES}
+    )
+
+    target_link_libraries(imgui_lib PRIVATE ${IMGUI_PLATFORM_LIBRARIES})
+    target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR})
+
+    # Manually build ImGuizmo too 
+    add_library(imguizmo
+        "${imguizmo_SOURCE_DIR}/ImGuizmo.cpp"
+        "${imguizmo_SOURCE_DIR}/ImSequencer.cpp"
+        "${imguizmo_SOURCE_DIR}/ImCurveEdit.cpp"
+        "${imguizmo_SOURCE_DIR}/ImGradient.cpp"
+        "${imguizmo_SOURCE_DIR}/GraphEditor.cpp"
+    )
+    target_link_libraries(imguizmo PUBLIC imgui_lib)
+    target_include_directories(imguizmo PUBLIC ${imguizmo_SOURCE_DIR})
+
+    # Manually build ImPlot as well 
+    add_library(implot
+        "${implot_SOURCE_DIR}/implot.cpp"
+        "${implot_SOURCE_DIR}/implot_items.cpp"
+        "${implot_SOURCE_DIR}/implot_demo.cpp"
+    )
+    target_link_libraries(implot PUBLIC imgui_lib)
+    target_include_directories(implot PUBLIC ${implot_SOURCE_DIR})
+
+    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} imgui_lib imguizmo implot)
+endif()
+
 
 
 # Configure the Versioning file. 
@@ -126,7 +212,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     slang
     OpenAL::OpenAL
 )
-
+ 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}/include/" 
     ${stb_INCLUDE_DIR}
@@ -135,4 +221,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_compile_definitions(${PROJECT_NAME} PUBLIC 
     ONYX_ENABLE_VULKAN=${ONYX_ENABLE_VULKAN} 
     ONYX_ENABLE_DX12=${ONYX_ENABLE_DX12}
+    ONYX_ENABLE_IMGUI=${ONYX_ENABLE_IMGUI}
 )

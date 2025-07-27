@@ -8,3 +8,5 @@
 /.idea/ # Android Studio Cache
 *.swp   # Swapfiles
 /.vs
+
+*.aps   # Compiled Resource Binaries (Windows)

@@ -11,6 +11,9 @@ set(ONYX_VERSION_ISSUE 0)
 set(ONYX_GIT_BRANCH "")
 set(ONYX_GIT_COMMIT_HASH "")
 
+# TODO: Move to a CMake Option!
+set(ONYX_ENABLE_IMGUI 1)
+
 # TODO: Move to a .cmake script! 
 find_package(Git)
 if(Git_FOUND)
