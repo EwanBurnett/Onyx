@@ -13,10 +13,10 @@ namespace Onyx{
     namespace Verison{ 
         constexpr uint8_t kMajor = 0;
         constexpr uint8_t kMinor = 0;
-        constexpr uint8_t kIssue = 0;
+        constexpr uint8_t kIssue = 1;
 
         constexpr const char* kGitBranch = u8"dev/setup";
-        constexpr const char* kGitHash = u8"1765966";
+        constexpr const char* kGitHash = u8"b91ba0a";
     }
 }
 
