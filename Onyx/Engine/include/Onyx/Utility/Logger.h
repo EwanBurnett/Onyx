@@ -50,7 +50,8 @@ namespace Onyx {
             WARNINGS = (1 << 3),    //Enables Warning statements.  
             ERRORS = (1 << 4),      //Enables Error statements. 
             VALIDATION = (1 << 5),  //Enables API Validation statements. 
-            ELogSeverityFlags_MAX = (1 << 6) - 1
+            ALL = (1 << 6) - 1,     //Enables All severity stages. 
+            ELogSeverityFlags_MAX
         };
 
         inline ELogSeverityFlags operator | (ELogSeverityFlags lhs, ELogSeverityFlags rhs) {
@@ -64,8 +65,6 @@ namespace Onyx {
             PRINT = 0,
             DEBUG,
             MESSAGE,
-            SUCCESS,
-            FAILURE,
             WARNING,
             ERROR,
             FATAL,

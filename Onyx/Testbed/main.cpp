@@ -39,8 +39,6 @@ void android_main(android_app* pApp){
 int main() {
     Run();
 
-
-
     return 0; 
 }
 
@@ -59,8 +57,13 @@ void Run(){
 
         //TODO: Update
         printf("Frame %u\r", ++frameIdx);
+        Onyx::Utility::Log::Print("This is a Print Message!\n");
         Onyx::Utility::Log::Debug("This is a Debug Message!\n");
-
+        Onyx::Utility::Log::Message("This is an Info Message!\n");
+        Onyx::Utility::Log::Warning("This is a Warning!\n");
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is an Error Message!\n");
+        Onyx::Utility::Log::Fatal(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is a Fatal Error Message!\n");
+        Onyx::Utility::Log::Validation("Testing", "This is a Validation Message!\n");
 
         //TODO: Render
     }

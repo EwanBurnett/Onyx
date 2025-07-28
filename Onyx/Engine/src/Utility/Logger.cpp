@@ -50,6 +50,36 @@ Onyx::Utility::ELogSeverityFlags Onyx::Utility::Log::GetSeverityFlags()
     return m_SeverityFlags;
 }
 
+void Onyx::Utility::Log::Print(const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    {
+        //We need to own the mutex for all output calls associated with this message!
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+        //Timestamp
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::PRINT, fmt, args);
+        va_end(args);
+#else
+        //Manually format the Log Output. 
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+        l._Output(ELogColour::WHITE, stdout, "");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::WHITE, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
+
+}
 
 void Onyx::Utility::Log::Debug(const char* fmt, ...)
 {
@@ -81,6 +111,161 @@ void Onyx::Utility::Log::Debug(const char* fmt, ...)
 #endif
     }
 
+}
+
+void Onyx::Utility::Log::Message(const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    //Only output if Status severity is enabled. 
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::STATUS) {
+        //We need to own the mutex for all output calls associated with this message!
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+        //Timestamp
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::MESSAGE, fmt, args);
+        va_end(args);
+#else
+        //Manually format the Log Output. 
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+        l._Output(ELogColour::LIGHTCYAN, stdout, "[Info]\t");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::LIGHTCYAN, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
+
+}
+
+void Onyx::Utility::Log::Warning(const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    //Only output if Status severity is enabled. 
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::WARNINGS) {
+        //We need to own the mutex for all output calls associated with this message!
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::MESSAGE, fmt, args);
+        va_end(args);
+#else
+        //Manually format the Log Output. 
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+        l._Output(ELogColour::YELLOW, stdout, "[Warning]\t");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::YELLOW, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
+
+}
+
+void Onyx::Utility::Log::Error(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...)
+{
+    Log& l = Log::GetInstance(); //Track the log.
+
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::ERRORS) {
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::ERROR, fmt, args);
+        l._AOutput(ELogSeverity::ERROR, "File: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
+        va_end(args);
+#else
+        //Timestamp
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stderr, timestamp);
+
+        l._Output(ELogColour::LIGHTRED, stderr, "[Error]\t");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::LIGHTRED, stderr, fmt, args);
+        va_end(args);
+        l._Output(ELogColour::LIGHTRED, stderr, "\nFile: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
+#endif
+    }
+}
+
+void Onyx::Utility::Log::Fatal(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...)
+{
+    Log& l = Log::GetInstance(); //Track the log.
+
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::ERRORS) {
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::FATAL, fmt, args);
+        l._AOutput(ELogSeverity::FATAL, "File: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
+        va_end(args);
+#else
+        //Timestamp
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stderr, timestamp);
+
+        l._Output(ELogColour::RED, stderr, "[FATAL]\t");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::RED, stderr, fmt, args);
+        va_end(args);
+        l._Output(ELogColour::RED, stderr, "\nFile: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
+#endif
+    }
+}
+
+
+void Onyx::Utility::Log::Validation(const char* prefix, const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::VALIDATION) {
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+#if __ANDROID__
+        l._AOutput(ELogSeverity::VALIDATION, "[%s]\t", prefix);
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::VALIDATION, fmt, args);
+        va_end(args);
+#else
+        //Timestamp
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+
+        l._Output(ELogColour::MAGENTA, stdout, "[%s]\t", prefix);
+
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::MAGENTA, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
 }
 
 void Onyx::Utility::Log::GetTimestamp(char* timestampBuffer, size_t bufferSize)
@@ -159,8 +344,6 @@ void Onyx::Utility::Log::_AOutput(ELogSeverity severity, const char* fmt, va_lis
         ALOG_DEBUG(fmt, args); 
         break; 
     case ELogSeverity::MESSAGE: 
-    case ELogSeverity::SUCCESS: 
-    case ELogSeverity::FAILURE: 
         ALOG_INFO(fmt, args); 
         break;
     case ELogSeverity::VALIDATION:
