@@ -5,9 +5,12 @@
 
 #if _WIN32 || __LINUX__ 
 #include <GLFW/glfw3.h>
+#elif __ANDROID__
+#include <game-activity/native_app_glue/android_native_app_glue.h>
+#include <vulkan/vulkan_android.h>
 #endif
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init()
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 {
     Utility::Log::Message("Creating Vulkan GPUDevice...\n");
 
@@ -27,16 +30,18 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init()
 
     //Select a Physical Device
     VkPhysicalDeviceFeatures requiredFeatures = {};
-    requiredFeatures.fillModeNonSolid = VK_TRUE; 
+    requiredFeatures.fillModeNonSolid = VK_TRUE;
 
     SelectPhysicalDevice(requiredFeatures);
 
     //Create the Device
     std::vector<const char*> deviceExtensions = {};
     deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); 
+    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-    CreateDevice(deviceExtensions, requiredFeatures); 
+    CreateDevice(deviceExtensions, requiredFeatures);
+
+    CreateSurface(pWindow);
 
 }
 
@@ -44,8 +49,9 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 {
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
 
+    DestroySurface();
     DestroyDevice();
-    DestroyInstance(); 
+    DestroyInstance();
 }
 
 
@@ -189,9 +195,9 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyInstance()
 {
-    Utility::Log::Debug("Destroying Vulkan Instance <0x%x>.\n", m_Instance); 
-    vkDestroyInstance(m_Instance, nullptr); 
-    m_Instance = VK_NULL_HANDLE; 
+    Utility::Log::Debug("Destroying Vulkan Instance <0x%x>.\n", m_Instance);
+    vkDestroyInstance(m_Instance, nullptr);
+    m_Instance = VK_NULL_HANDLE;
 }
 
 
@@ -364,6 +370,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     deviceCreateInfo.pEnabledFeatures = nullptr;// &m_pInitInfo->requiredFeatures;
 
     vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
+    Utility::Log::Debug("Vulkan Device Created! -> <0x%x>\n", m_Device);
 
     vkGetDeviceQueue(m_Device, m_QueueFamilyIndex, 0, &m_Queue);
 
@@ -371,9 +378,38 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDevice()
 {
-    Utility::Log::Debug("Destroying Vulkan device <0x%x>\n", m_Device); 
-    vkDestroyDevice(m_Device, nullptr); 
-    m_Device = VK_NULL_HANDLE; 
+    Utility::Log::Debug("Destroying Vulkan device <0x%x>\n", m_Device);
+    vkDestroyDevice(m_Device, nullptr);
+    m_Device = VK_NULL_HANDLE;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSurface(Window* pWindow)
+{
+    VkResult res = VK_SUCCESS;
+#if _WIN32 || __LINUX__
+    res = glfwCreateWindowSurface(m_Instance, reinterpret_cast<GLFWwindow*>(pWindow->GetHandle()), nullptr, &m_Surface);
+#elif __ANDROID__
+    VkAndroidSurfaceCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.window = reinterpret_cast<android_app*>(pWindow->GetHandle())->window;
+
+    res = vkCreateAndroidSurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface);
+#endif
+
+    if (res != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create Vulkan Surface!\n");
+    }
+
+    Utility::Log::Debug("Creating Vulkan Surface <0x%x>\n", m_Surface);
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySurface()
+{
+    Utility::Log::Debug("Destroying Vulkan Surface <0x%x>\n", m_Surface);
+    vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
+    m_Surface = VK_NULL_HANDLE;
 }
 
 

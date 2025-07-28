@@ -41,7 +41,7 @@ public:
 
         m_Window.Create(1600, 900, m_Context);
         m_Device = new Onyx::Graphics::Vulkan::GPUDevice_Vulkan;
-        m_Device->Init();
+        m_Device->Init(&m_Window);
 
         m_IsInitialized = true;
     }
@@ -73,7 +73,7 @@ public:
             android_poll_source* pSource = nullptr;
             int events = 0;
             int timeout = 0;
-            int r = ALooper_pollOnce(timeout, nullptr, &events,reinterpret_cast<void**>(&pSource));
+            int r = ALooper_pollOnce(timeout, nullptr, &events, reinterpret_cast<void**>(&pSource));
 
             switch (r) {
             case ALOOPER_POLL_TIMEOUT:
@@ -128,26 +128,27 @@ void handle_cmd(android_app* pApp, int32_t cmd) {
 void android_main(android_app* pApp) {
 
     //Run the application.
-    try {
     App app(pApp);
-    pApp->userData = &app;
-    pApp->onAppCmd = handle_cmd;
+    try {
+        pApp->userData = &app;
+        pApp->onAppCmd = handle_cmd;
 
 
-    while (app.PollEvents())
-    {
-        if (!app.m_IsInitialized) {
-            continue;
+        while (app.PollEvents())
+        {
+            if (!app.m_IsInitialized) {
+                continue;
+            }
+            app.Update();
         }
-        app.Update();
-    }
 
-    app.Shutdown();
+        app.Shutdown();
 
 
     }
     catch (std::exception& e) {
         Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what());
+        app.Shutdown();
     }
 
 }
@@ -171,6 +172,7 @@ int main() {
     }
     catch (std::exception& e) {
         Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what());
+        app.Shutdown();
     }
 
     return 0;

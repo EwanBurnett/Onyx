@@ -39,6 +39,8 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
         throw(std::runtime_error("Android App Context was nullptr!\n"));
     }
 #elif _WIN32 || __LINUX__
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     m_pHandle = static_cast<void*>(glfwCreateWindow(width, height, title, nullptr, nullptr));
     if (!m_pHandle) {
         throw std::runtime_error("Failed to Create Window!\n");
