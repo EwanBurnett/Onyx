@@ -22,3 +22,4 @@
 **/local.properties
 /.vs
 /Onyx/Testbed/android/.idea
+/Onyx/Testbed/android/app/src/main/jniLibs

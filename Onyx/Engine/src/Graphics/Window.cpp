@@ -20,22 +20,23 @@ Onyx::Graphics::Window::~Window()
 
 void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height, void* pContext, const char* title)
 {
-    Utility::Log::Message("Creating Window.\n"); 
+    Utility::Log::Message("Creating Window.\n");
 #if __ANDROID__
-    if(pContext != nullptr) {
+    if (pContext != nullptr) {
         m_pHandle = pContext;   //Cache the android_app*
 
-        android_app *pApp = reinterpret_cast<android_app*>(m_pHandle);
+        android_app* pApp = reinterpret_cast<android_app*>(m_pHandle);
 
         if (pApp->window != nullptr) {
             m_Height = ANativeWindow_getHeight(pApp->window);
             m_Width = ANativeWindow_getWidth(pApp->window);
             //ANativeWindow_getFormat(pApp->window);
-        } else {
+        }
+        else {
             throw(std::runtime_error("Android App Window was nullptr!\n"));
         }
     }
-    else{
+    else {
         throw(std::runtime_error("Android App Context was nullptr!\n"));
     }
 #elif _WIN32 || __LINUX__
@@ -48,16 +49,26 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
     m_Height = height;
     m_Width = width;
 #endif
-    Utility::Log::Message("Window Created!\nWidth: %d\nHeight: %d\nTitle: %s\n", m_Width, m_Height, title); 
+    Utility::Log::Message("Window Created!\nWidth: %d\nHeight: %d\nTitle: %s\n", m_Width, m_Height, title);
 }
 
 void Onyx::Graphics::Window::Destroy() {
 
 #if _WIN32 || __LINUX__
-    glfwDestroyWindow(static_cast<GLFWwindow*>(m_pHandle)); 
+    glfwDestroyWindow(static_cast<GLFWwindow*>(m_pHandle));
 #endif
 }
 
 void* Onyx::Graphics::Window::GetHandle() {
     return m_pHandle;
 }
+
+
+uint32_t Onyx::Graphics::Window::GetWidth() const {
+    return m_Width; 
+}
+
+uint32_t Onyx::Graphics::Window::GetHeight() const {
+    return m_Height; 
+}
+

@@ -10,6 +10,8 @@ namespace Onyx {
         namespace Vulkan {
             class GPUDevice_Vulkan : public GPUDevice {
             public:
+                GPUDevice_Vulkan(); 
+
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
@@ -26,6 +28,10 @@ namespace Onyx {
                 void CreateSurface(Window* pWindow);
                 void DestroySurface();
 
+                void CreateSwapchain(Window* pWindow); 
+                void DestroySwapchain(); 
+
+
 
             private:
                 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
@@ -39,6 +45,12 @@ namespace Onyx {
                 VkPhysicalDevice m_PhysicalDevice;
                 VkDevice m_Device;
                 VkSurfaceKHR m_Surface;
+
+                VkSwapchainKHR m_Swapchain; 
+                VkFormat m_SwapchainFormat; 
+                VkExtent2D m_SwapchainExtent;
+                std::vector<VkImage> m_SwapchainImages; 
+                std::vector<VkImageView> m_SwapchainImageViews; 
 
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;

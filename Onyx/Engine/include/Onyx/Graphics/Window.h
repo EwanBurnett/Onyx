@@ -14,6 +14,9 @@ namespace Onyx {
             void Destroy();
 
             void* GetHandle();
+
+            uint32_t GetWidth() const; 
+            uint32_t GetHeight() const; 
         private:
             void* m_pHandle;
             uint32_t m_Width;

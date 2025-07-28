@@ -106,6 +106,7 @@ Requirements:
 ### Android
 - Currently, only the Testbed project supports Android builds. 
     - This is planned to be resolved during a later version, adding support for custom projects.
+- Note: To use Vulkan Validation layers in Android, follow [this](https://developer.android.com/ndk/guides/graphics/validation-layer) guide.
 
 #### Android Studio (Recommended)
 Requirements: 
