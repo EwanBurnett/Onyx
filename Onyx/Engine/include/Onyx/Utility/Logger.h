@@ -43,9 +43,9 @@ namespace Onyx {
          */
         enum ELogSeverityFlags : uint32_t {
             NONE = 0u,
-            GENERAL = (1 << 0),     //Enables Print, Message and Fatal Error statements.
+            GENERAL = (1 << 0),     //Enables Print statements.
             DEBUG = (1 << 1),       //Enables Debug statements.
-            STATUS = (1 << 2),      //Enables Success and Failure status statements. 
+            STATUS = (1 << 2),      //Enables Message statements. 
             WARNINGS = (1 << 3),    //Enables Warning statements.  
             ERRORS = (1 << 4),      //Enables Error statements. 
             VALIDATION = (1 << 5),  //Enables API Validation statements. 

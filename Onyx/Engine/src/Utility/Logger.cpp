@@ -66,6 +66,7 @@ void Onyx::Utility::Log::Print(const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
 
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::GENERAL) 
     {
         //We need to own the mutex for all output calls associated with this message!
         std::lock_guard<std::mutex> lk(l.m_OutputLock);
@@ -102,6 +103,7 @@ void Onyx::Utility::Log::Print(ELogColour colour, const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
 
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::GENERAL) 
     {
         //We need to own the mutex for all output calls associated with this message!
         std::lock_guard<std::mutex> lk(l.m_OutputLock);
