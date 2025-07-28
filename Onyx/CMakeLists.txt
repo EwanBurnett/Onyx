@@ -10,4 +10,5 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Testbed/")
 # Only build Tests + Editor for Desktop. 
 if(NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Android")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Tests/")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Editor/")
 endif()
