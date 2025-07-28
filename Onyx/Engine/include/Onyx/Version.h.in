@@ -1,0 +1,23 @@
+#ifndef __VERSION_H
+#define __VERSION_H
+/**
+* CMAKE GENERATED FILE - DO NOT TOUCH  
+* Configures the Engine's Version. 
+* -------------------------------------------------
+* @author Ewan Burnett(EwanBurnettSK@Outlook.com)
+* @date 2025/07/27
+*/
+#include <cstdint> 
+
+namespace Onyx{
+    namespace Verison{ 
+        constexpr uint8_t kMajor = @ONYX_VERSION_MAJOR@;
+        constexpr uint8_t kMinor = @ONYX_VERSION_MINOR@;
+        constexpr uint8_t kIssue = @ONYX_VERSION_ISSUE@;
+
+        constexpr const char* kGitBranch = u8"@ONYX_GIT_BRANCH@";
+        constexpr const char* kGitHash = u8"@ONYX_GIT_COMMIT_HASH@";
+    }
+}
+
+#endif//__VERSION_H
