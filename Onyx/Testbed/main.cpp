@@ -4,6 +4,8 @@
 #include <Onyx/Version.h>
 #include <cstring>
 
+#include <Onyx/Utility/Logger.h>
+
 void Run();
 
 #if __ANDROID__
@@ -37,6 +39,8 @@ void android_main(android_app* pApp){
 int main() {
     Run();
 
+
+
     return 0; 
 }
 
@@ -47,14 +51,15 @@ void Run(){
     Onyx::Initialize();
 
     uint64_t frameIdx = 0u;
-    printf("Running for 1000000 Frames.\n");
+    printf("Running for 100 Frames.\n");
 
     //TODO: Application Loop
-    while (frameIdx < 1000000u) {   //Prevent the app from running forever...
+    while (frameIdx < 100u) {   //Prevent the app from running forever...
         //TODO: Poll Events
 
         //TODO: Update
         printf("Frame %u\r", ++frameIdx);
+        Onyx::Utility::Log::Debug("This is a Debug Message!\n");
 
 
         //TODO: Render

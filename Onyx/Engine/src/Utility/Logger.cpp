@@ -1,0 +1,185 @@
+#include "../../include/Onyx/Utility/Logger.h"
+
+
+#include <cstdio> 
+#include <time.h> 
+
+constexpr int kTimestampBufferSize = 0xff;
+
+#ifdef _WIN32
+
+#define WIN32_LEAN_AND_MEAN
+#define VC_EXTRALEAN
+#define NOGDI
+#include <Windows.h> 
+
+#elif __ANDROID__ 
+
+#include <android/log.h>
+
+#define ALOG_UNKNOWN(...) ((void)__android_log_print(ANDROID_LOG_UNKNOWN, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_PRINT(...) ((void)__android_log_print(ANDROID_LOG_DEFAULT, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_VERBOSE(...) ((void)__android_log_print(ANDROID_LOG_VERBOSE, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_DEBUG(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_INFO(...) ((void)__android_log_print(ANDROID_LOG_INFO, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_WARNING(...) ((void)__android_log_print(ANDROID_LOG_WARN, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_ERROR(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_FATAL(...) ((void)__android_log_print(ANDROID_LOG_FATAL, "Onyx-Engine", __VA_ARGS__))
+
+#endif
+
+Onyx::Utility::Log::Log()
+{
+    m_SeverityFlags = ELogSeverityFlags::ELogSeverityFlags_MAX;
+}
+
+Onyx::Utility::Log& Onyx::Utility::Log::GetInstance()
+{
+    //As a static variable, this is guaranteed to be initialized only once, and destroyed. 
+    static Log instance;
+    return instance;
+}
+
+void Onyx::Utility::Log::SetSeverityFlags(const ELogSeverityFlags severityFlags)
+{
+    m_SeverityFlags = severityFlags;
+}
+
+Onyx::Utility::ELogSeverityFlags Onyx::Utility::Log::GetSeverityFlags()
+{
+    return m_SeverityFlags;
+}
+
+
+void Onyx::Utility::Log::Debug(const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    //Only output if Debugging severity is enabled. 
+    if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::DEBUG) {
+        //We need to own the mutex for all output calls associated with this message!
+        std::lock_guard<std::mutex> lk(l.m_OutputLock); 
+
+        //Timestamp
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::DEBUG, fmt, args);
+        va_end(args);
+#else
+        //Manually format the Log Output. 
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+        l._Output(ELogColour::GREEN, stdout, "[Debug]\t");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(ELogColour::GREEN, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
+
+}
+
+void Onyx::Utility::Log::GetTimestamp(char* timestampBuffer, size_t bufferSize)
+{
+    time_t now = time(NULL);
+    auto _tm = localtime(&now);    //NOTE: This isn't thread safe in the standard!
+
+    strftime(timestampBuffer, bufferSize, "[%H:%M:%S] ", _tm);
+}
+
+void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fmt, ...)
+{
+    //Construct a va_list, and forward to the handler. 
+    va_list args;
+    va_start(args, fmt);
+    _Output(colour, stream, fmt, args);
+    va_end(args);
+}
+
+void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fmt, va_list args)
+{
+    //Change the output colour 
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, (WORD)colour);
+#else //Assume the program is running on linux, or a similar system. 
+    switch (colour) {
+    case ELogColour::RED:
+        fprintf(stream, "\033[31m");
+        break;
+    case ELogColour::GREEN:
+        fprintf(stream, "\033[32m");
+        break;
+    case ELogColour::YELLOW:
+    case ELogColour::BROWN:
+        fprintf(stream, "\033[33m");
+        break;
+    case ELogColour::BLUE:
+        fprintf(stream, "\033[34m");
+        break;
+    case ELogColour::CYAN:
+        fprintf(stream, "\033[36m");
+        break;
+    case ELogColour::WHITE:
+        fprintf(stream, "\033[37m");
+        break;
+    default:
+        fprintf(stream, "\033[35m");
+        break;
+    }
+#endif
+
+    vfprintf(stream, fmt, args);
+    //Reset the output colour
+#ifdef _WIN32
+    SetConsoleTextAttribute(hConsole, (WORD)ELogColour::WHITE);
+#else
+    fprintf(stream, "\033[0m");
+#endif
+}
+
+void Onyx::Utility::Log::_AOutput(ELogSeverity severity, const char* fmt, ...) {
+    va_list args; 
+    va_start(args, fmt); 
+    _AOutput(severity, fmt, args); 
+    va_end(args); 
+}
+
+void Onyx::Utility::Log::_AOutput(ELogSeverity severity, const char* fmt, va_list args) {
+#if __ANDROID__
+    switch (severity) {
+    case ELogSeverity::PRINT:
+        ALOG_PRINT(fmt, args); 
+        break; 
+    case ELogSeverity::DEBUG:
+        ALOG_DEBUG(fmt, args); 
+        break; 
+    case ELogSeverity::MESSAGE: 
+    case ELogSeverity::SUCCESS: 
+    case ELogSeverity::FAILURE: 
+        ALOG_INFO(fmt, args); 
+        break;
+    case ELogSeverity::VALIDATION:
+        ALOG_VERBOSE(fmt, args); 
+        break; 
+    case ELogSeverity::WARNING: 
+        ALOG_WARNING(fmt, args); 
+        break; 
+    case ELogSeverity::ERROR: 
+        ALOG_ERROR(fmt, args); 
+        break;
+    case ELogSeverity::FATAL: 
+        ALOG_FATAL(fmt, args); 
+        break; 
+    default: 
+        ALOG_UNKNOWN(fmt, args);
+    }
+#endif
+}
+
+
+
