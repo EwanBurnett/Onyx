@@ -1,6 +1,8 @@
 #ifndef __GPU_DEVICE_H
 #define __GPU_DEVICE_H
 
+#include <vector> 
+
 namespace Onyx {
     namespace Graphics {
         class GPUDevice {

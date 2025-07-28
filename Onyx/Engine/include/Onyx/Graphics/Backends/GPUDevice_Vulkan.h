@@ -1,7 +1,7 @@
 #ifndef __GPU_DEVICE_VULKAN_H
 #define __GPU_DEVICE_VULKAN_H
 
-#include "../GPUDevice.h"; 
+#include "../GPUDevice.h" 
 #include "vk_mem_alloc.h"
 #include <vulkan/vulkan.h> 
 
@@ -18,6 +18,13 @@ namespace Onyx {
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion); 
                 void DestroyInstance(); 
 
+                void SelectPhysicalDevice(const VkPhysicalDeviceFeatures& requiredFeatures = {});
+
+                void CreateDevice(const std::vector<const char*>& requiredExtensions, const VkPhysicalDeviceFeatures& requiredFeatures = {});
+                void DestroyDevice(); 
+
+                void CreateSurface(void* pWindow, const uint32_t width, const uint32_t height); 
+
             private: 
                 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
                 VkResult vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
@@ -29,6 +36,10 @@ namespace Onyx {
                 VkInstance m_Instance; 
                 VkPhysicalDevice m_PhysicalDevice; 
                 VkDevice m_Device; 
+
+                //TODO: Queue Abstraction + Multiple Queues
+                uint32_t m_QueueFamilyIndex; 
+                VkQueue m_Queue; 
 
             };
         }

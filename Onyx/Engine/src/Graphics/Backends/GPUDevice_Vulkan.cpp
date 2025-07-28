@@ -2,7 +2,6 @@
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
 
-#include <vector> 
 
 #if _WIN32 || __LINUX__ 
 #include <GLFW/glfw3.h>
@@ -24,8 +23,20 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init()
         const uint32_t applicationVersion = VK_MAKE_API_VERSION(0, 0, 0, 1);
 
         CreateInstance(enableValidationLayers, enableDebugUtils, applicationName, applicationVersion);
-
     }
+
+    //Select a Physical Device
+    VkPhysicalDeviceFeatures requiredFeatures = {};
+    requiredFeatures.fillModeNonSolid = VK_TRUE; 
+
+    SelectPhysicalDevice(requiredFeatures);
+
+    //Create the Device
+    std::vector<const char*> deviceExtensions = {};
+    deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); 
+
+    CreateDevice(deviceExtensions, requiredFeatures); 
 
 }
 
@@ -33,6 +44,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 {
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
 
+    DestroyDevice();
     DestroyInstance(); 
 }
 
@@ -177,11 +189,192 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyInstance()
 {
-    Utility::Log::Message("Destroying Vulkan Instance <0x%x>.\n", m_Instance); 
+    Utility::Log::Debug("Destroying Vulkan Instance <0x%x>.\n", m_Instance); 
     vkDestroyInstance(m_Instance, nullptr); 
     m_Instance = VK_NULL_HANDLE; 
 }
 
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::SelectPhysicalDevice(const VkPhysicalDeviceFeatures& requiredFeatures)
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
+    std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
+    vkEnumeratePhysicalDevices(m_Instance, &deviceCount, physicalDevices.data());
+
+    const auto& lastDevice = physicalDevices.end();
+    for (const auto& device : physicalDevices) {
+
+        //Evaluate device feature compatibility
+        VkPhysicalDeviceFeatures deviceFeatures = {};
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+        bool featuresValid = true;
+
+        for (size_t i = 0; i < sizeof(VkPhysicalDeviceFeatures) / sizeof(VkBool32); i++) {
+            VkBool32* a = ((VkBool32*)&requiredFeatures) + i;
+            VkBool32* b = ((VkBool32*)&deviceFeatures) + i;
+
+            if (*a == VK_TRUE) {
+                if (*b != VK_TRUE) {
+                    featuresValid = false;
+                }
+            }
+        }
+
+        if (!featuresValid) {
+            Utility::Log::Warning("Not all required Physical Device Features were available!\n");
+            continue;
+        }
+
+        //Prefer a Discrete GPU. 
+        VkPhysicalDeviceProperties deviceProperties = {};
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+        Utility::Log::Debug("Found Compatible Device %s!\n", deviceProperties.deviceName);
+
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            m_PhysicalDevice = device;
+            break;
+        }
+        else if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
+            m_PhysicalDevice = device;
+            break;
+        }
+
+        //Continue searching
+        else {
+            m_PhysicalDevice = device;
+            continue;
+        }
+
+    }
+
+    if (m_PhysicalDevice == VK_NULL_HANDLE) {
+        Utility::Log::Fatal(__FILE__, __LINE__, __PRETTY_FUNCTION__, "No Suitable Physical Device found!\n");
+        return;
+    }
+
+    VkPhysicalDeviceProperties deviceProperties = {};
+    vkGetPhysicalDeviceProperties(m_PhysicalDevice, &deviceProperties);
+
+    Utility::Log::Debug("Selected Physical Device: [%s]\n", deviceProperties.deviceName);
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<const char*>& requiredExtensions, const VkPhysicalDeviceFeatures& requiredFeatures)
+{
+    Utility::Log::Debug("Creating Vulkan Device.\n");
+
+    std::vector<const char*> deviceExtensions;
+
+    //Validate requested device extensions
+    {
+        uint32_t propertyCount = 0;
+        vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &propertyCount, nullptr);
+        std::vector<VkExtensionProperties> extensionProperties(propertyCount);
+        vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &propertyCount, extensionProperties.data());
+
+        for (const auto& extension : requiredExtensions) {
+
+            //Evaluate Instance Extension Support
+            bool extensionSupported = false;
+
+            for (const auto& property : extensionProperties) {
+                if (strcmp(property.extensionName, extension) == 0) {
+                    extensionSupported = true;
+                    break;
+                }
+            }
+
+            //Add the extension to our internal list, if supported. 
+            if (extensionSupported) {
+                Utility::Log::Debug("Enabling Device Extension <%s>.\n", extension);
+                deviceExtensions.push_back(extension);
+            }
+            else {
+                Utility::Log::Warning("Extension <%s> is not supported by the current Vulkan Device!\n", extension);
+            }
+        }
+    }
+
+    auto FindGraphicsQueueFamilyIndex = [](VkPhysicalDevice physicalDevice) -> uint32_t {
+
+        uint32_t propCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, nullptr);
+        std::vector<VkQueueFamilyProperties> properties(propCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, properties.data());
+
+        uint32_t index = 0;
+        for (const auto& p : properties) {
+
+            if (p.queueFlags & VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT) {
+                return index;
+            }
+            index++;
+        }
+
+        return 0;
+        };
+
+    m_QueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_PhysicalDevice);
+
+    //Enable device features
+    /*
+    VkPhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures = {};
+    bufferAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    bufferAddressFeatures.pNext = nullptr;
+    bufferAddressFeatures.bufferDeviceAddress = VK_TRUE;
+    */
+
+
+    VkPhysicalDeviceVulkan12Features vulkan1_2features = {};
+    vulkan1_2features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan1_2features.pNext = nullptr;
+    vulkan1_2features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    vulkan1_2features.bufferDeviceAddress = VK_TRUE;
+    vulkan1_2features.descriptorIndexing = VK_TRUE;
+
+    VkPhysicalDeviceFeatures2 deviceFeatures = {};
+    deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures.pNext = &vulkan1_2features;
+    deviceFeatures.features = requiredFeatures;
+
+    //We want one Graphics queue
+    float priority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo = {};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.pNext = nullptr;
+    queueCreateInfo.flags = 0;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.queueFamilyIndex = m_QueueFamilyIndex;
+    queueCreateInfo.pQueuePriorities = &priority;
+
+
+    //Create the Device
+    VkDeviceCreateInfo deviceCreateInfo = {};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pNext = (void*)&deviceFeatures;
+    deviceCreateInfo.flags = 0;
+    deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+    deviceCreateInfo.enabledLayerCount = 0;
+    deviceCreateInfo.ppEnabledLayerNames = nullptr;
+    deviceCreateInfo.pEnabledFeatures = nullptr;// &m_pInitInfo->requiredFeatures;
+
+    vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
+
+    vkGetDeviceQueue(m_Device, m_QueueFamilyIndex, 0, &m_Queue);
+
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDevice()
+{
+    Utility::Log::Debug("Destroying Vulkan device <0x%x>\n", m_Device); 
+    vkDestroyDevice(m_Device, nullptr); 
+    m_Device = VK_NULL_HANDLE; 
+}
 
 
 VKAPI_ATTR VkBool32 VKAPI_CALL Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)

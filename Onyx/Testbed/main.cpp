@@ -84,6 +84,7 @@ void Run(){
     }
 
     device->Shutdown(); 
+    delete device; 
 
     //Terminate the Engine
     Onyx::Shutdown();
