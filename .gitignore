@@ -1,12 +1,24 @@
 
 # Ignore build files
-[Bb]uild/
-[Oo]ut/
+**/[Bb]uild
+**/[Oo]ut
 
 # Ignore IDE generated files
-/.vs/   # Visual Studio Cache
-/.idea/ # Android Studio Cache
+**/.vs   # Visual Studio Cache
+**/.idea # Android Studio Cache
 *.swp   # Swapfiles
-/.vs
+
 
 *.aps   # Compiled Resource Binaries (Windows)
+
+# Android build files 
+*.iml 
+*.gradle
+**/local
+**/.DS_Store
+**/captures
+*.externalNativeBuild
+**/.cxx
+**/local.properties
+/.vs
+/Onyx/Testbed/android/.idea

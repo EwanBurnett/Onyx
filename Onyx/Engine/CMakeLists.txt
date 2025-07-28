@@ -9,7 +9,11 @@ project("Onyx-Engine")
 # Configure the Project
 set(CMAKE_CXX_STANDARD 17)  # Target C++ 17
 
-set(ONYX_ENGINE_LIBRARIES )
+set(ONYX_ENGINE_LIBRARIES ) 
+
+#TODO: Move to a CMake Option!
+set(ONYX_ENABLE_IMGUI 1)
+
 
 # Fetch Dependencies
 include(FetchContent)
@@ -17,7 +21,8 @@ include(FetchContent)
 # Threads
 find_package(Threads REQUIRED)
 set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} Threads::Threads)
-
+set(ONYX_ENGINE_SOURCES )
+set(ONYX_ENGINE_INCLUDE_DIRS )
 
 # Vulkan
 find_package(Vulkan)
@@ -53,14 +58,31 @@ else()
     set(ONYX_ENABLE_DX12 0)
 endif()
 
+# Android 
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+    message(STATUS "Building for Android.")
+    set(ONYX_PLATFORM_ANDROID 1)
+
+    find_package(game-activity REQUIRED CONFIG)
+
+    # Link Android Libraries 
+    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} game-activity::game-activity_static android log)
+
+    # TODO: DO we need these???
+    set(ONYX_ENGINE_SOURCES "${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c")
+    set(ONYX_ENGINE_INCLUDE_DIRS ${ONYX_ENGINE_INCLUDE_DIRS} "${ANDROID_NDK}/sources/android/native_app_glue")
+endif()
+
 # Desktop Only Libraries 
 if(WIN32 OR LINUX)
+    set(ONYX_PLATFORM_DESKTOP 1)
+
     # GLFW 
     FetchContent_Declare(
         glfw
         GIT_REPOSITORY https://github.com/glfw/glfw.git
         GIT_TAG 3.4
-        FIND_PACKAGE_ARGS NAMES glfw
+        # FIND_PACKAGE_ARGS NAMES glfw
     )
      
     # Native File Dialog Extended
@@ -81,7 +103,7 @@ FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
     GIT_TAG 1.0.1
-    FIND_PACKAGE_ARGS NAMES glm
+    # FIND_PACKAGE_ARGS NAMES glm
 )
  
 # ASSIMP 
@@ -89,7 +111,7 @@ FetchContent_Declare(
 	assimp
 	GIT_REPOSITORY https://github.com/assimp/assimp.git
 	GIT_TAG v6.0.2
-    FIND_PACKAGE_ARGS NAMES assimp
+    # FIND_PACKAGE_ARGS NAMES assimp
 )
 
 # STB
@@ -97,13 +119,14 @@ FetchContent_Declare(
 	stb
 	GIT_REPOSITORY https://github.com/nothings/stb 
 )
+set(ONYX_ENGINE_INCLUDE_DIRS ${ONYX_ENGINE_INCLUDE_DIRS} ${stb_INCLUDE_DIR})
 
 # SLang 
 FetchContent_Declare(
     slang
     GIT_REPOSITORY https://github.com/shader-slang/slang
     GIT_TAG v2025.13.1 
-    FIND_PACKAGE_ARGS NAMES slang
+    # FIND_PACKAGE_ARGS NAMES slang
 )
 
 # OpenAL Soft
@@ -113,7 +136,7 @@ FetchContent_Declare(
 	GIT_TAG 1.24.3
 )
 
-FetchContent_MakeAvailable(glm assimp stb slang openal_soft)
+FetchContent_MakeAvailable(glm assimp stb openal_soft) # slang
 
 # ImGui libraries
 if(ONYX_ENABLE_IMGUI)
@@ -155,6 +178,15 @@ if(ONYX_ENABLE_IMGUI)
     if(ONYX_PLATFORM_DESKTOP)
         set(IMGUI_PLATFORM_SOURCES ${IMGUI_PLATFORM_SOURCES} "${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp")
         set(IMGUI_PLATFORM_LIBRARIES ${IMGUI_PLATFORM_LIBRARIES} glfw)
+    elseif(ONYX_PLATFORM_ANDROID) 
+        set(IMGUI_PLATFORM_SOURCES ${IMGUI_PLATFORM_SOURCES} "${imgui_SOURCE_DIR}/backends/imgui_impl_android.cpp" )
+
+        set(IMGUI_PLATFORM_LIBRARIES ${IMGUI_PLATFORM_LIBRARIES} android log)
+
+        set(CMAKE_SHARED_LINKER_FLAGS
+            "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate"
+        )
+
     endif()
 
     # Manually Build ImGui as a static library
@@ -168,7 +200,11 @@ if(ONYX_ENABLE_IMGUI)
     )
 
     target_link_libraries(imgui_lib PRIVATE ${IMGUI_PLATFORM_LIBRARIES})
-    target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR})
+    if(ONYX_PLATFORM_ANDROID)
+        target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR} "${ANDROID_NDK}/sources/android/native_app_glue/")
+    else()
+        target_include_directories(imgui_lib PUBLIC ${imgui_SOURCE_DIR})
+    endif()
 
     # Manually build ImGuizmo too 
     add_library(imguizmo
@@ -193,10 +229,42 @@ if(ONYX_ENABLE_IMGUI)
     set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} imgui_lib imguizmo implot)
 endif()
 
+# Version configuration 
+set(ONYX_VERSION_MAJOR 0)
+set(ONYX_VERSION_MINOR 0)
+set(ONYX_VERSION_ISSUE 0)
 
+set(ONYX_GIT_BRANCH "")
+set(ONYX_GIT_COMMIT_HASH "")
+
+# TODO: Move to a .cmake script! 
+find_package(Git)
+if(Git_FOUND)
+    # Retrieve the Branch name from Git. 
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE ONYX_GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "Git Branch ${ONYX_GIT_BRANCH}")
+
+    # Retrieve the latest Commit hash from Git. 
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} log -1 --format=%h 
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE ONYX_GIT_COMMIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "Git Commit Hash ${ONYX_GIT_COMMIT_HASH}")
+
+else()
+    message(WARNING "Git Executable not found!")
+endif()
 
 # Configure the Versioning file. 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/Onyx/Version.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/Onyx/Version.h")
+
 
 # Build the Engine Static Library. 
 add_library(${PROJECT_NAME} STATIC
@@ -209,15 +277,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     ${ONYX_ENGINE_LIBRARIES} 
     glm::glm 
     assimp::assimp 
-    slang
+    # slang
     OpenAL::OpenAL
 )
- 
+
 target_include_directories(${PROJECT_NAME} PUBLIC 
     "${CMAKE_CURRENT_SOURCE_DIR}/include/" 
-    ${stb_INCLUDE_DIR}
+    ${ONYX_ENGINE_INCLUDE_DIRS}
 )
-
 target_compile_definitions(${PROJECT_NAME} PUBLIC 
     ONYX_ENABLE_VULKAN=${ONYX_ENABLE_VULKAN} 
     ONYX_ENABLE_DX12=${ONYX_ENABLE_DX12}

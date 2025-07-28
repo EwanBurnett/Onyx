@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <Onyx.h>
+#include <Onyx/Onyx.h>
 
 TEST(Onyx_Debugging, GetOne) {
     int one = Onyx::GetOne(); 

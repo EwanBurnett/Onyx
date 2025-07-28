@@ -14,7 +14,12 @@ if(WIN32)
     set(PLATFORM_SOURCES ${PLATFORM_SOURCES} resources.rc)
 endif()
 
-add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES} main.cpp)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+    set(PLATFORM_SOURCES ${PLATFORM_SOURCES})
+    add_library(${PROJECT_NAME} SHARED ${PLATFORM_SOURCES} main.cpp)   # TODO: De-duplicate sources...
+else()
+    add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES} main.cpp)
+endif()
 
 # Ensure there is a build dependency on the main Engine library. 
 add_dependencies(${PROJECT_NAME} Onyx-Engine)

@@ -15,8 +15,8 @@ namespace Onyx{
         constexpr uint8_t kMinor = @ONYX_VERSION_MINOR@;
         constexpr uint8_t kIssue = @ONYX_VERSION_ISSUE@;
 
-        constexpr char* kGitBranch = u8"@ONYX_GIT_BRANCH@";
-        constexpr char* kGitHash = u8"@ONYX_GIT_COMMIT_HASH@";
+        constexpr const char* kGitBranch = u8"@ONYX_GIT_BRANCH@";
+        constexpr const char* kGitHash = u8"@ONYX_GIT_COMMIT_HASH@";
     }
 }
 
