@@ -3,7 +3,7 @@
 # ---------------------------------------------------
 # Author: Ewan Burnett (EwanBurnettSK@Outlook.com)
 # Created: 2025/07/26
-# Last Modified: 2025/07/26
+# Last Modified: 2025/07/28
 
 project("Testbed")
 
@@ -26,3 +26,7 @@ add_dependencies(${PROJECT_NAME} Onyx-Engine)
 
 # Link the main Engine to the testbed project. 
 target_link_libraries(${PROJECT_NAME} Onyx-Engine)
+
+# TODO: Shader Compilation step
+
+# TODO: Copy Resources + Assets + Shared Libraries to OutDir

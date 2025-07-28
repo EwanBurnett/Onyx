@@ -2,7 +2,7 @@
 # ---------------------------------------------------
 # Author: Ewan Burnett (EwanBurnettSK@Outlook.com)
 # Created: 2025/07/26
-# Last Modified: 2025/07/27
+# Last Modified: 2025/07/28
 
 project("Onyx-Engine")
 
@@ -92,9 +92,17 @@ if(WIN32 OR LINUX)
         GIT_TAG v1.2.1
     )
 
-    FetchContent_MakeAvailable(glfw nfd)
+    # SLang 
+    FetchContent_Declare(
+        slang
+        GIT_REPOSITORY https://github.com/shader-slang/slang
+        GIT_TAG v2025.13.1 
+        # FIND_PACKAGE_ARGS NAMES slang
+    )
 
-    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw nfd)
+    FetchContent_MakeAvailable(glfw nfd slang)
+
+    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw nfd slang)
 endif()
 
 
@@ -121,13 +129,7 @@ FetchContent_Declare(
 )
 set(ONYX_ENGINE_INCLUDE_DIRS ${ONYX_ENGINE_INCLUDE_DIRS} ${stb_INCLUDE_DIR})
 
-# SLang 
-FetchContent_Declare(
-    slang
-    GIT_REPOSITORY https://github.com/shader-slang/slang
-    GIT_TAG v2025.13.1 
-    # FIND_PACKAGE_ARGS NAMES slang
-)
+
 
 # OpenAL Soft
 FetchContent_Declare(
@@ -136,7 +138,7 @@ FetchContent_Declare(
 	GIT_TAG 1.24.3
 )
 
-FetchContent_MakeAvailable(glm assimp stb openal_soft) # slang
+FetchContent_MakeAvailable(glm assimp stb openal_soft)
 
 # ImGui libraries
 if(ONYX_ENABLE_IMGUI)
@@ -232,7 +234,7 @@ endif()
 # Version configuration 
 set(ONYX_VERSION_MAJOR 0)
 set(ONYX_VERSION_MINOR 0)
-set(ONYX_VERSION_ISSUE 0)
+set(ONYX_VERSION_ISSUE 1)
 
 set(ONYX_GIT_BRANCH "")
 set(ONYX_GIT_COMMIT_HASH "")
@@ -277,7 +279,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     ${ONYX_ENGINE_LIBRARIES} 
     glm::glm 
     assimp::assimp 
-    # slang
     OpenAL::OpenAL
 )
 
