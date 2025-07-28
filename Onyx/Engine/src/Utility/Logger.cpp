@@ -24,14 +24,14 @@ constexpr int kTimestampBufferSize = 0xff;
 
 #include <android/log.h>
 
-#define ALOG_UNKNOWN(...) ((void)__android_log_print(ANDROID_LOG_UNKNOWN, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_PRINT(...) ((void)__android_log_print(ANDROID_LOG_DEFAULT, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_VERBOSE(...) ((void)__android_log_print(ANDROID_LOG_VERBOSE, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_DEBUG(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_INFO(...) ((void)__android_log_print(ANDROID_LOG_INFO, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_WARNING(...) ((void)__android_log_print(ANDROID_LOG_WARN, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_ERROR(...) ((void)__android_log_print(ANDROID_LOG_ERROR, "Onyx-Engine", __VA_ARGS__))
-#define ALOG_FATAL(...) ((void)__android_log_print(ANDROID_LOG_FATAL, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_UNKNOWN(...) ((void)__android_log_vprint(ANDROID_LOG_UNKNOWN, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_PRINT(...) ((void)__android_log_vprint(ANDROID_LOG_DEFAULT, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_VERBOSE(...) ((void)__android_log_vprint(ANDROID_LOG_VERBOSE, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_DEBUG(...) ((void)__android_log_vprint(ANDROID_LOG_DEBUG, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_INFO(...) ((void)__android_log_vprint(ANDROID_LOG_INFO, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_WARNING(...) ((void)__android_log_vprint(ANDROID_LOG_WARN, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_ERROR(...) ((void)__android_log_vprint(ANDROID_LOG_ERROR, "Onyx-Engine", __VA_ARGS__))
+#define ALOG_FATAL(...) ((void)__android_log_vprint(ANDROID_LOG_FATAL, "Onyx-Engine", __VA_ARGS__))
 
 #endif
 

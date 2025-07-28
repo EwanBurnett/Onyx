@@ -57,6 +57,7 @@ void Run(){
 
         //TODO: Update
         printf("Frame %u\r", ++frameIdx);
+        Onyx::Utility::Log::Print("This is a Print Message! %s\n", "hi");
         Onyx::Utility::Log::Print("This is a Print Message!\n");
         Onyx::Utility::Log::Print(Onyx::Utility::ELogColour::BLUE, "This is a Print Message in Blue!\n");
         Onyx::Utility::Log::Debug("This is a Debug Message!\n");
