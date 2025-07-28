@@ -1,9 +1,16 @@
+/*
+* @file Logger.cpp
+* Thread-Safe Console Logging Utility
+* ------------------------------------------------
+* @author Ewan Burnett(EwanBurnettSK@Outlook.com)
+* @date 2025/07/28
+*/
 #include "../../include/Onyx/Utility/Logger.h"
-
 
 #include <cstdio> 
 #include <time.h> 
 
+//Controls how large the default buffer for Timestamp formatting is. 
 constexpr int kTimestampBufferSize = 0xff;
 
 #ifdef _WIN32
@@ -30,7 +37,7 @@ constexpr int kTimestampBufferSize = 0xff;
 
 Onyx::Utility::Log::Log()
 {
-    m_SeverityFlags = ELogSeverityFlags::ELogSeverityFlags_MAX;
+    m_SeverityFlags = ELogSeverityFlags::ALL;
 }
 
 Onyx::Utility::Log& Onyx::Utility::Log::GetInstance()
@@ -50,6 +57,11 @@ Onyx::Utility::ELogSeverityFlags Onyx::Utility::Log::GetSeverityFlags()
     return m_SeverityFlags;
 }
 
+/**
+ * @brief Prints a message to the Console, as-is.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Print(const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
@@ -58,7 +70,6 @@ void Onyx::Utility::Log::Print(const char* fmt, ...)
         //We need to own the mutex for all output calls associated with this message!
         std::lock_guard<std::mutex> lk(l.m_OutputLock);
 
-        //Timestamp
 #if __ANDROID__
         //Forward our message to the Android Logger. 
         va_list args;
@@ -81,6 +92,47 @@ void Onyx::Utility::Log::Print(const char* fmt, ...)
 
 }
 
+/**
+ * @brief Prints a message to the Console, as-is.
+ * @param colour `ELogColour` for the message.
+ * @param fmt
+ * @param
+ */
+void Onyx::Utility::Log::Print(ELogColour colour, const char* fmt, ...)
+{
+    Log& l = Log::GetInstance();
+
+    {
+        //We need to own the mutex for all output calls associated with this message!
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
+
+#if __ANDROID__
+        //Forward our message to the Android Logger. 
+        va_list args;
+        va_start(args, fmt);
+        l._AOutput(ELogSeverity::PRINT, fmt, args);
+        va_end(args);
+#else
+        //Manually format the Log Output. 
+        char timestamp[kTimestampBufferSize];
+        GetTimestamp(timestamp, kTimestampBufferSize);
+
+        l._Output(ELogColour::WHITE, stdout, timestamp);
+        l._Output(colour, stdout, "");
+        va_list args;
+        va_start(args, fmt);
+        l._Output(colour, stdout, fmt, args);
+        va_end(args);
+#endif
+    }
+
+}
+
+/**
+ * @brief Prints a Debug message to the console.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Debug(const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
@@ -88,9 +140,8 @@ void Onyx::Utility::Log::Debug(const char* fmt, ...)
     //Only output if Debugging severity is enabled. 
     if ((int)l.GetSeverityFlags() & (int)ELogSeverityFlags::DEBUG) {
         //We need to own the mutex for all output calls associated with this message!
-        std::lock_guard<std::mutex> lk(l.m_OutputLock); 
+        std::lock_guard<std::mutex> lk(l.m_OutputLock);
 
-        //Timestamp
 #if __ANDROID__
         //Forward our message to the Android Logger. 
         va_list args;
@@ -113,6 +164,11 @@ void Onyx::Utility::Log::Debug(const char* fmt, ...)
 
 }
 
+/**
+ * @brief Prints an Info message to the console.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Message(const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
@@ -122,7 +178,6 @@ void Onyx::Utility::Log::Message(const char* fmt, ...)
         //We need to own the mutex for all output calls associated with this message!
         std::lock_guard<std::mutex> lk(l.m_OutputLock);
 
-        //Timestamp
 #if __ANDROID__
         //Forward our message to the Android Logger. 
         va_list args;
@@ -145,6 +200,11 @@ void Onyx::Utility::Log::Message(const char* fmt, ...)
 
 }
 
+/**
+ * @brief Prints a Warning message to the console.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Warning(const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
@@ -176,6 +236,14 @@ void Onyx::Utility::Log::Warning(const char* fmt, ...)
 
 }
 
+/**
+ * @brief Prints an Error message to the console.
+ * @param file provide `__FILE__`.
+ * @param line provide `__LINE__`.
+ * @param funcsig provide `__PRETTY_FUNCTION__`.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Error(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...)
 {
     Log& l = Log::GetInstance(); //Track the log.
@@ -191,7 +259,6 @@ void Onyx::Utility::Log::Error(const char* file, const uint64_t line, const char
         l._AOutput(ELogSeverity::ERROR, "File: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
         va_end(args);
 #else
-        //Timestamp
         char timestamp[kTimestampBufferSize];
         GetTimestamp(timestamp, kTimestampBufferSize);
 
@@ -207,6 +274,14 @@ void Onyx::Utility::Log::Error(const char* file, const uint64_t line, const char
     }
 }
 
+/**
+ * @brief Prints a Fatal Error message to the console.
+ * @param file provide `__FILE__`.
+ * @param line provide `__LINE__`.
+ * @param funcsig provide `__PRETTY_FUNCTION__`.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Fatal(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...)
 {
     Log& l = Log::GetInstance(); //Track the log.
@@ -222,7 +297,6 @@ void Onyx::Utility::Log::Fatal(const char* file, const uint64_t line, const char
         l._AOutput(ELogSeverity::FATAL, "File: %s\nLine : %d\nFunction : %s\n", file, line, funcsig);
         va_end(args);
 #else
-        //Timestamp
         char timestamp[kTimestampBufferSize];
         GetTimestamp(timestamp, kTimestampBufferSize);
 
@@ -238,7 +312,12 @@ void Onyx::Utility::Log::Fatal(const char* file, const uint64_t line, const char
     }
 }
 
-
+/**
+ * @brief Prints a Validation message to the console.
+ * @param prefix Category prefix for the Validation message.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::Validation(const char* prefix, const char* fmt, ...)
 {
     Log& l = Log::GetInstance();
@@ -252,7 +331,6 @@ void Onyx::Utility::Log::Validation(const char* prefix, const char* fmt, ...)
         l._AOutput(ELogSeverity::VALIDATION, fmt, args);
         va_end(args);
 #else
-        //Timestamp
         char timestamp[kTimestampBufferSize];
         GetTimestamp(timestamp, kTimestampBufferSize);
 
@@ -268,6 +346,11 @@ void Onyx::Utility::Log::Validation(const char* prefix, const char* fmt, ...)
     }
 }
 
+/**
+ * @brief Formats a Timestamp in the format [%H:%M:%S] in the buffer provided.
+ * @param timestampBuffer pointer to a buffer of bufferSize or greater.
+ * @param bufferSize the size of the buffer.
+ */
 void Onyx::Utility::Log::GetTimestamp(char* timestampBuffer, size_t bufferSize)
 {
     time_t now = time(NULL);
@@ -276,6 +359,13 @@ void Onyx::Utility::Log::GetTimestamp(char* timestampBuffer, size_t bufferSize)
     strftime(timestampBuffer, bufferSize, "[%H:%M:%S] ", _tm);
 }
 
+/**
+ * @brief Outputs a message to the console.
+ * @param colour
+ * @param stream
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fmt, ...)
 {
     //Construct a va_list, and forward to the handler. 
@@ -285,6 +375,13 @@ void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fm
     va_end(args);
 }
 
+/**
+ * @brief Outputs a message to the console.
+ * @param colour
+ * @param stream
+ * @param fmt
+ * @param args
+ */
 void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fmt, va_list args)
 {
     //Change the output colour 
@@ -327,38 +424,51 @@ void Onyx::Utility::Log::_Output(ELogColour colour, FILE* stream, const char* fm
 #endif
 }
 
+/**
+ * @brief Outputs a message to the Android Console.
+ * @param severity `ELogSeverity` of the message to output.
+ * @param fmt
+ * @param
+ */
 void Onyx::Utility::Log::_AOutput(ELogSeverity severity, const char* fmt, ...) {
-    va_list args; 
-    va_start(args, fmt); 
-    _AOutput(severity, fmt, args); 
-    va_end(args); 
+    //Construct a va_list, and forward to the handler. 
+    va_list args;
+    va_start(args, fmt);
+    _AOutput(severity, fmt, args);
+    va_end(args);
 }
 
+/**
+ * @brief Outputs a message to the Android Console.
+ * @param severity `ELogSeverity` of the message to output.
+ * @param fmt
+ * @param args
+ */
 void Onyx::Utility::Log::_AOutput(ELogSeverity severity, const char* fmt, va_list args) {
 #if __ANDROID__
     switch (severity) {
     case ELogSeverity::PRINT:
-        ALOG_PRINT(fmt, args); 
-        break; 
+        ALOG_PRINT(fmt, args);
+        break;
     case ELogSeverity::DEBUG:
-        ALOG_DEBUG(fmt, args); 
-        break; 
-    case ELogSeverity::MESSAGE: 
-        ALOG_INFO(fmt, args); 
+        ALOG_DEBUG(fmt, args);
+        break;
+    case ELogSeverity::MESSAGE:
+        ALOG_INFO(fmt, args);
         break;
     case ELogSeverity::VALIDATION:
-        ALOG_VERBOSE(fmt, args); 
-        break; 
-    case ELogSeverity::WARNING: 
-        ALOG_WARNING(fmt, args); 
-        break; 
-    case ELogSeverity::ERROR: 
-        ALOG_ERROR(fmt, args); 
+        ALOG_VERBOSE(fmt, args);
         break;
-    case ELogSeverity::FATAL: 
-        ALOG_FATAL(fmt, args); 
-        break; 
-    default: 
+    case ELogSeverity::WARNING:
+        ALOG_WARNING(fmt, args);
+        break;
+    case ELogSeverity::ERROR:
+        ALOG_ERROR(fmt, args);
+        break;
+    case ELogSeverity::FATAL:
+        ALOG_FATAL(fmt, args);
+        break;
+    default:
         ALOG_UNKNOWN(fmt, args);
     }
 #endif

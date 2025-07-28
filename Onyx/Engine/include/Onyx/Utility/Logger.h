@@ -1,6 +1,7 @@
 #ifndef __LOGGER_H
 #define __LOGGER_H
 /*
+* @file Logger.h
 * Thread-Safe Console Logging Utility
 * ------------------------------------------------
 * @author Ewan Burnett(EwanBurnettSK@Outlook.com)
@@ -14,8 +15,6 @@
 
 #include <cstdarg> 
 #include <mutex> 
-
-
 
 namespace Onyx {
     namespace Utility {
@@ -83,10 +82,9 @@ namespace Onyx {
             ELogSeverityFlags GetSeverityFlags();
 
             static void Print(const char* fmt, ...);
+            static void Print(ELogColour colour, const char* fmt, ...);
             static void Debug(const char* fmt, ...);
             static void Message(const char* fmt, ...);
-            static void Success(const char* fmt, ...);
-            static void Failure(const char* fmt, ...);
             static void Warning(const char* fmt, ...);
             static void Error(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...);
             static void Fatal(const char* file, const uint64_t line, const char* funcsig, const char* fmt, ...);
