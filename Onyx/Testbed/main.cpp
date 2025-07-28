@@ -6,6 +6,9 @@
 
 #include <Onyx/Utility/Logger.h>
 
+#include <Onyx/Graphics/GPUDevice.h>
+#include <Onyx/Graphics/Backends/GPUDevice_Vulkan.h>
+
 void Run();
 
 #if __ANDROID__
@@ -27,17 +30,25 @@ extern "C" {
 
 
 void android_main(android_app* pApp){
-    ALOGD("Main Called!\n");
-
     //Run the application.
-    Run();  //TODO: App class /w context
+    try {
+        Run();
+    }
+    catch (std::exception& e) {
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what());
+    }
 }
 
 
 #else 
 
 int main() {
-    Run();
+    try {
+        Run();
+    }
+    catch (std::exception& e) {
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what()); 
+    }
 
     return 0; 
 }
@@ -48,12 +59,16 @@ void Run(){
     //Initialize the Engine
     Onyx::Initialize();
 
+    Onyx::Graphics::GPUDevice* device = new Onyx::Graphics::Vulkan::GPUDevice_Vulkan; 
+    device->Init(); 
+
     uint64_t frameIdx = 0u;
-    printf("Running for 100 Frames.\n");
+    printf("Running for 1 Frame.\n");
 
     //TODO: Application Loop
-    while (frameIdx < 100u) {   //Prevent the app from running forever...
+    while (frameIdx < 1u) {   //Prevent the app from running forever...
         //TODO: Poll Events
+        frameIdx++;
 
         //TODO: Update
         Onyx::Utility::Log::Print("This is a Print Message!\n");
@@ -67,6 +82,8 @@ void Run(){
 
         //TODO: Render
     }
+
+    device->Shutdown(); 
 
     //Terminate the Engine
     Onyx::Shutdown();
