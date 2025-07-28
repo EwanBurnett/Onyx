@@ -4,6 +4,8 @@
 #include <Onyx/Version.h>
 #include <cstring>
 
+#include <Onyx/Utility/Logger.h>
+
 void Run();
 
 #if __ANDROID__
@@ -47,15 +49,21 @@ void Run(){
     Onyx::Initialize();
 
     uint64_t frameIdx = 0u;
-    printf("Running for 1000000 Frames.\n");
+    printf("Running for 100 Frames.\n");
 
     //TODO: Application Loop
-    while (frameIdx < 1000000u) {   //Prevent the app from running forever...
+    while (frameIdx < 100u) {   //Prevent the app from running forever...
         //TODO: Poll Events
 
         //TODO: Update
-        printf("Frame %u\r", ++frameIdx);
-
+        Onyx::Utility::Log::Print("This is a Print Message!\n");
+        Onyx::Utility::Log::Print(Onyx::Utility::ELogColour::BLUE, "This is a Print Message in Blue!\n");
+        Onyx::Utility::Log::Debug("This is a Debug Message!\n");
+        Onyx::Utility::Log::Message("This is an Info Message!\n");
+        Onyx::Utility::Log::Validation("Testing", "This is a Validation Message!\n");
+        Onyx::Utility::Log::Warning("This is a Warning!\n");
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is an Error Message!\n");
+        Onyx::Utility::Log::Fatal(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is a Fatal Error Message!\n");
 
         //TODO: Render
     }

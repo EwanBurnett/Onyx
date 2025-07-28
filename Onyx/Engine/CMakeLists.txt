@@ -273,7 +273,7 @@ add_library(${PROJECT_NAME} STATIC
     "include/Onyx/Onyx.h" 
     "src/Onyx.cpp"
     "include/Onyx/Version.h"
-)
+ "include/Onyx/Utility/Logger.h" "src/Utility/Logger.cpp")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${ONYX_ENGINE_LIBRARIES} 
