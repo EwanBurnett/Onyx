@@ -7,18 +7,17 @@
 
 project("Testbed")
 
-set(PLATFORM_SOURCES )
+set(TESTBED_SOURCES main.cpp "App.cpp" "App.h")
 
 # Conditionally compile resources.rc 
 if(WIN32)
-    set(PLATFORM_SOURCES ${PLATFORM_SOURCES} resources.rc)
+    set(TESTBED_SOURCES ${TESTBED_SOURCES} resources.rc)
 endif()
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
-    set(PLATFORM_SOURCES ${PLATFORM_SOURCES})
-    add_library(${PROJECT_NAME} SHARED ${PLATFORM_SOURCES} main.cpp)   # TODO: De-duplicate sources...
+    add_library(${PROJECT_NAME} SHARED ${TESTBED_SOURCES})  
 else()
-    add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES} main.cpp)
+    add_executable(${PROJECT_NAME} ${TESTBED_SOURCES})
 endif()
 
 # Ensure there is a build dependency on the main Engine library. 

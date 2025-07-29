@@ -8,9 +8,12 @@ namespace Onyx {
     namespace Graphics {
         class GPUDevice {
         public:
+            //virtual ~GPUDevice(); 
+
             virtual void Init(Window* pWindow) = 0;
             virtual void Shutdown() = 0;
 
+            virtual void CreateSwapchain(Window* pWindow); 
         };
     }
 }

@@ -1,6 +1,12 @@
 #ifndef __GPU_DEVICE_VULKAN_H
 #define __GPU_DEVICE_VULKAN_H
-
+/*
+* @file GPUDevice_Vulkan.h
+* @brief Vulkan GPU backend
+* ------------------------------------------------ 
+* @author Ewan Burnett(EwanBurnettSK@Outlook.com)
+* @date 2025/07/29
+*/
 #include "../GPUDevice.h" 
 #include "vk_mem_alloc.h"
 #include <vulkan/vulkan.h> 
@@ -15,6 +21,7 @@ namespace Onyx {
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
+                void CreateSwapchain(Window* pWindow) override; 
 
             private:
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion);
@@ -28,7 +35,6 @@ namespace Onyx {
                 void CreateSurface(Window* pWindow);
                 void DestroySurface();
 
-                void CreateSwapchain(Window* pWindow); 
                 void DestroySwapchain(); 
 
                 void CreateVMAAllocator(); 
