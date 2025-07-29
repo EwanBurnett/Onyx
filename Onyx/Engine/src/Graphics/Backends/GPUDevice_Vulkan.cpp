@@ -1,3 +1,10 @@
+/*
+* @file GPUDevice_Vulkan.cpp
+* @brief Vulkan GPU backend
+* ------------------------------------------------
+* @author Ewan Burnett(EwanBurnettSK@Outlook.com)
+* @date 2025/07/29
+*/
 #include "../../../include/Onyx/Graphics/Backends/GPUDevice_Vulkan.h"
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
@@ -11,18 +18,23 @@
 
 Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
 {
-    m_Swapchain = VK_NULL_HANDLE; 
+    m_Instance = VK_NULL_HANDLE; 
+    m_PhysicalDevice = VK_NULL_HANDLE; 
+    m_Device = VK_NULL_HANDLE; 
+    m_Queue = VK_NULL_HANDLE; 
+    m_QueueFamilyIndex = -1; 
+    m_Surface = VK_NULL_HANDLE; 
+    m_Swapchain = VK_NULL_HANDLE;
+    m_VMAAllocator = VK_NULL_HANDLE; 
+
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 {
     Utility::Log::Message("Creating Vulkan GPUDevice...\n");
 
-    //TODO: For now, do this all inline; Eventually needs to be moved into functions! 
-
     //Create the Vulkan Instance
     {
-
         //TODO: All of the following need to be externally populated!
         const bool enableValidationLayers = true;
         const bool enableDebugUtils = true;
@@ -33,7 +45,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
     }
 
     //Select a Physical Device
-    VkPhysicalDeviceFeatures requiredFeatures = {};
+    VkPhysicalDeviceFeatures requiredFeatures = {}; //TODO: This should be able to be specified from the application...
     requiredFeatures.fillModeNonSolid = VK_TRUE;
 
     SelectPhysicalDevice(requiredFeatures);
@@ -50,13 +62,13 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     CreateSwapchain(pWindow);
 
-    CreateVMAAllocator(); 
+    CreateVMAAllocator();
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 {
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
-    vkDeviceWaitIdle(m_Device); 
+    vkDeviceWaitIdle(m_Device);
 
     DestroyVMAAllocator();
     DestroySwapchain();
@@ -68,7 +80,6 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion)
 {
-
     Utility::Log::Debug("Creating Vulkan Instance...\n");
     std::vector<const char*> requestedInstanceLayers;
     std::vector<const char*> requestedInstanceExtensions;
@@ -116,7 +127,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
         requestedInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
         requestedInstanceExtensions.push_back("VK_KHR_android_surface");
 #elif _WIN32 || __LINUX__ 
-        //TODO: Retrieve glfw required instance extensions
+        //Retrieve glfw required instance extensions
         uint32_t glfwExtensionCount = 0u;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -442,7 +453,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
     }
     //TODO: We're being lazy and just selecting the first swapchain image format. 
     VkSurfaceFormatKHR format = formats[0];
-
+    m_SwapchainFormat = format.format; 
 
 
     uint32_t numPresentModes = 0;
@@ -552,14 +563,14 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVMAAllocator()
     createInfo.pVulkanFunctions = &vulkanFuncs;
 
     vmaCreateAllocator(&createInfo, &m_VMAAllocator);
-    Utility::Log::Debug("Creating VMA Allocator <0x%x>\n", m_VMAAllocator); 
+    Utility::Log::Debug("Creating VMA Allocator <0x%x>\n", m_VMAAllocator);
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyVMAAllocator()
 {
-    Utility::Log::Debug("Destroying VMA Allocator <0x%x>\n", m_VMAAllocator); 
+    Utility::Log::Debug("Destroying VMA Allocator <0x%x>\n", m_VMAAllocator);
     vmaDestroyAllocator(m_VMAAllocator);
-    m_VMAAllocator = VK_NULL_HANDLE; 
+    m_VMAAllocator = VK_NULL_HANDLE;
 }
 
 
