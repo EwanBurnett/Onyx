@@ -23,6 +23,9 @@ namespace Onyx {
 
                 void CreateSwapchain(Window* pWindow) override; 
 
+                Buffer CreateBuffer(const BufferCreateInfo& createInfo) override; 
+                void DestroyBuffer(Buffer& buffer) override; 
+
             private:
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion);
                 void DestroyInstance();
@@ -65,6 +68,9 @@ namespace Onyx {
 
                 VmaAllocator m_VMAAllocator; 
 
+
+                //TODO: Settings 
+                bool m_EnableDebugUtils; 
             };
         }
     }

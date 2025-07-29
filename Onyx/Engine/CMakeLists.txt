@@ -283,7 +283,9 @@ add_library(${PROJECT_NAME} STATIC
     "src/Graphics/GPUDevice.cpp"
     "include/Onyx/Graphics/Backends/GPUDevice_Vulkan.h"
     "src/Graphics/Backends/GPUDevice_Vulkan.cpp"   
- "include/Onyx/Graphics/Window.h" "src/Graphics/Window.cpp" "src/Graphics/Backends/VMAImplementation.cpp")
+ "include/Onyx/Graphics/Window.h" "src/Graphics/Window.cpp" "src/Graphics/Backends/VMAImplementation.cpp"
+    "include/Onyx/Graphics/Buffer.h" "src/Graphics/Buffer.cpp"
+ )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${ONYX_ENGINE_LIBRARIES} 
