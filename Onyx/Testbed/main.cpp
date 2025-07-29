@@ -4,11 +4,17 @@
 #include <Onyx/Version.h>
 #include <cstring>
 
+
 #include <Onyx/Utility/Logger.h>
 
-void Run();
+#include "App.h"
 
-#if __ANDROID__
+
+#if _WIN32 || __LINUX__
+
+#include <GLFW/glfw3.h>
+
+#elif __ANDROID__
 
 #include <jni.h>
 #include <android/log.h>
@@ -21,53 +27,81 @@ void Run();
 
 extern "C" {
 #include <game-activity/native_app_glue/android_native_app_glue.c>
-
     void android_main(android_app* pApp);
-}
-
-
-void android_main(android_app* pApp){
-    ALOGD("Main Called!\n");
-
-    //Run the application.
-    Run();  //TODO: App class /w context
-}
-
-
-#else 
-
-int main() {
-    Run();
-
-    return 0; 
 }
 
 #endif
 
-void Run(){
-    //Initialize the Engine
-    Onyx::Initialize();
 
-    uint64_t frameIdx = 0u;
-    printf("Running for 100 Frames.\n");
+#if __ANDROID__
 
-    //TODO: Application Loop
-    while (frameIdx < 100u) {   //Prevent the app from running forever...
-        //TODO: Poll Events
+void handle_cmd(android_app* pApp, int32_t cmd) {
+    App* pApplication = reinterpret_cast<App*>(pApp->userData);
 
-        //TODO: Update
-        Onyx::Utility::Log::Print("This is a Print Message!\n");
-        Onyx::Utility::Log::Print(Onyx::Utility::ELogColour::BLUE, "This is a Print Message in Blue!\n");
-        Onyx::Utility::Log::Debug("This is a Debug Message!\n");
-        Onyx::Utility::Log::Message("This is an Info Message!\n");
-        Onyx::Utility::Log::Validation("Testing", "This is a Validation Message!\n");
-        Onyx::Utility::Log::Warning("This is a Warning!\n");
-        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is an Error Message!\n");
-        Onyx::Utility::Log::Fatal(__FILE__, __LINE__, __PRETTY_FUNCTION__, "This is a Fatal Error Message!\n");
+    switch (cmd) {
+    case APP_CMD_INIT_WINDOW:
+        //Initialize the Renderer in the window.
+        pApplication->Init();
+        break;
+    case APP_CMD_TERM_WINDOW:
+        //Terminate the renderer.
+        pApplication->Shutdown();
+        break;
+    default:
+        break;
+    }
+}
 
-        //TODO: Render
+void android_main(android_app* pApp) {
+
+    //Run the application.
+    App app(pApp);
+    try {
+        pApp->userData = &app;
+        pApp->onAppCmd = handle_cmd;
+
+
+        while (app.PollEvents())
+        {
+            if (!app.m_IsInitialized) {
+                continue;
+            }
+            app.Update();
+        }
+
+        app.Shutdown();
+
+
+    }
+    catch (std::exception& e) {
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what());
+        app.Shutdown();
     }
 
-    //Terminate the Engine
-    Onyx::Shutdown();
 }
+
+#else 
+
+int main() {
+    App app;
+    try {
+        app.Init();
+
+        while (app.PollEvents()) {
+            if (!app.m_IsInitialized) {
+                continue;
+            }
+            app.Update();
+        }
+
+        app.Shutdown();
+    }
+    catch (std::exception& e) {
+        Onyx::Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Caught Exception: %s\n", e.what());
+        app.Shutdown();
+    }
+
+    return 0;
+}
+
+#endif
