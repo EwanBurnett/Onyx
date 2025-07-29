@@ -31,7 +31,8 @@ namespace Onyx {
                 void CreateSwapchain(Window* pWindow); 
                 void DestroySwapchain(); 
 
-
+                void CreateVMAAllocator(); 
+                void DestroyVMAAllocator();
 
             private:
                 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
@@ -55,6 +56,8 @@ namespace Onyx {
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;
                 VkQueue m_Queue;
+
+                VmaAllocator m_VMAAllocator; 
 
             };
         }

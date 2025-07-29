@@ -2,7 +2,6 @@
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
 
-
 #if _WIN32 || __LINUX__ 
 #include <GLFW/glfw3.h>
 #elif __ANDROID__
@@ -51,12 +50,15 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     CreateSwapchain(pWindow);
 
+    CreateVMAAllocator(); 
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 {
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
+    vkDeviceWaitIdle(m_Device); 
 
+    DestroyVMAAllocator();
     DestroySwapchain();
     DestroySurface();
     DestroyDevice();
@@ -531,6 +533,33 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySwapchain()
     Utility::Log::Debug("Destroying Vulkan Swapchain <0x%x>\n", m_Swapchain);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
     m_Swapchain = VK_NULL_HANDLE;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVMAAllocator()
+{
+    VmaVulkanFunctions vulkanFuncs{};
+    vulkanFuncs.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkanFuncs.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
+    VmaAllocatorCreateInfo createInfo = {};
+    createInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    createInfo.instance = m_Instance;
+    createInfo.device = m_Device;
+    createInfo.pAllocationCallbacks = nullptr;
+    createInfo.pDeviceMemoryCallbacks = nullptr;
+    createInfo.pHeapSizeLimit = nullptr;
+    createInfo.physicalDevice = m_PhysicalDevice;
+    createInfo.pVulkanFunctions = &vulkanFuncs;
+
+    vmaCreateAllocator(&createInfo, &m_VMAAllocator);
+    Utility::Log::Debug("Creating VMA Allocator <0x%x>\n", m_VMAAllocator); 
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyVMAAllocator()
+{
+    Utility::Log::Debug("Destroying VMA Allocator <0x%x>\n", m_VMAAllocator); 
+    vmaDestroyAllocator(m_VMAAllocator);
+    m_VMAAllocator = VK_NULL_HANDLE; 
 }
 
 
