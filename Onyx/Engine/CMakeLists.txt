@@ -21,7 +21,11 @@ include(FetchContent)
 # Threads
 find_package(Threads REQUIRED)
 set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} Threads::Threads)
-set(ONYX_ENGINE_SOURCES )
+set(ONYX_ENGINE_SOURCES #define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+)
 set(ONYX_ENGINE_INCLUDE_DIRS )
 
 # Vulkan
@@ -273,7 +277,13 @@ add_library(${PROJECT_NAME} STATIC
     "include/Onyx/Onyx.h" 
     "src/Onyx.cpp"
     "include/Onyx/Version.h"
- "include/Onyx/Utility/Logger.h" "src/Utility/Logger.cpp")
+    "include/Onyx/Utility/Logger.h" 
+    "src/Utility/Logger.cpp"
+    "include/Onyx/Graphics/GPUDevice.h"
+    "src/Graphics/GPUDevice.cpp"
+    "include/Onyx/Graphics/Backends/GPUDevice_Vulkan.h"
+    "src/Graphics/Backends/GPUDevice_Vulkan.cpp"   
+ "include/Onyx/Graphics/Window.h" "src/Graphics/Window.cpp" "src/Graphics/Backends/VMAImplementation.cpp")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${ONYX_ENGINE_LIBRARIES} 
