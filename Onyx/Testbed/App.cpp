@@ -9,7 +9,7 @@
 #include <game-activity/GameActivity.h>
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 
-#elif _WIN32 || __LINUX__ 
+#elif _WIN32 || __linux__ 
 
 #include <GLFW/glfw3.h>
 
@@ -43,7 +43,7 @@ void App::Shutdown() {
 }
 
 bool App::PollEvents() {
-#if _WIN32 || __LINUX__
+#if _WIN32 || __linux__
     glfwPollEvents();
     return !glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_Window.GetHandle()));
 

@@ -10,7 +10,7 @@
 #include "App.h"
 
 
-#if _WIN32 || __LINUX__
+#if _WIN32 || __linux__
 
 #include <GLFW/glfw3.h>
 

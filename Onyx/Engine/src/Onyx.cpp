@@ -3,7 +3,7 @@
 #include <../include/Onyx/Utility/Logger.h>
 #include <cstdio> 
 
-#if _WIN32 || __LINUX__ 
+#if _WIN32 || __linux__ 
 #include <GLFW/glfw3.h>
 #endif
 
@@ -11,7 +11,7 @@ void Onyx::Initialize()
 {
     Utility::Log::Message("Initializing Onyx v%d.%d.%d [%s] <%s>\n", Onyx::Verison::kMajor, Onyx::Verison::kMinor, Onyx::Verison::kIssue, Onyx::Verison::kGitBranch, Onyx::Verison::kGitHash);
 
-#if _WIN32 || __LINUX__ 
+#if _WIN32 || __linux__ 
     glfwInit();
 #endif
 
@@ -33,7 +33,7 @@ void Onyx::Initialize()
 
 void Onyx::Shutdown() {
     Utility::Log::Message("Terminating Onyx...\n");
-#if _WIN32 || __LINUX__ 
+#if _WIN32 || __linux__ 
     glfwTerminate();
 #endif
 

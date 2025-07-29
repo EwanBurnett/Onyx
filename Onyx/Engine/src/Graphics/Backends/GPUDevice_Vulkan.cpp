@@ -8,8 +8,9 @@
 #include "../../../include/Onyx/Graphics/Backends/GPUDevice_Vulkan.h"
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
+#include <cstring>
 
-#if _WIN32 || __LINUX__ 
+#if _WIN32 || __linux__ 
 #include <GLFW/glfw3.h>
 #elif __ANDROID__
 #include <game-activity/native_app_glue/android_native_app_glue.h>
@@ -52,8 +53,11 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     //Create the Device
     std::vector<const char*> deviceExtensions = {};
+
+    //TODO: Optional extensions!
     deviceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
     CreateDevice(deviceExtensions, requiredFeatures);
@@ -126,7 +130,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
 #if __ANDROID__
         requestedInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
         requestedInstanceExtensions.push_back("VK_KHR_android_surface");
-#elif _WIN32 || __LINUX__ 
+#elif _WIN32 || __linux__ 
         //Retrieve glfw required instance extensions
         uint32_t glfwExtensionCount = 0u;
         const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -177,6 +181,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
     applicationInfo.applicationVersion = applicationVersion;
     applicationInfo.pEngineName = "Onyx-Engine";
     applicationInfo.engineVersion = VK_MAKE_API_VERSION(0, Onyx::Verison::kMajor, Onyx::Verison::kMinor, Onyx::Verison::kIssue);
+    applicationInfo.apiVersion = VK_API_VERSION_1_2;
 
     //Optionally create a Debug messenger
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
@@ -203,6 +208,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
     createInfo.ppEnabledExtensionNames = instanceExtensions.data();
     createInfo.enabledLayerCount = instanceLayers.size();
     createInfo.ppEnabledLayerNames = instanceLayers.data();
+    createInfo.pApplicationInfo = &applicationInfo; 
 
     //Create the VkInstance
     VkResult res = vkCreateInstance(&createInfo, nullptr, &m_Instance);
@@ -347,14 +353,6 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     m_QueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_PhysicalDevice);
 
     //Enable device features
-    /*
-    VkPhysicalDeviceBufferDeviceAddressFeatures bufferAddressFeatures = {};
-    bufferAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-    bufferAddressFeatures.pNext = nullptr;
-    bufferAddressFeatures.bufferDeviceAddress = VK_TRUE;
-    */
-
-
     VkPhysicalDeviceVulkan12Features vulkan1_2features = {};
     vulkan1_2features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan1_2features.pNext = nullptr;
@@ -381,7 +379,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     //Create the Device
     VkDeviceCreateInfo deviceCreateInfo = {};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.pNext = (void*)&deviceFeatures;
+    deviceCreateInfo.pNext = (void*)&deviceFeatures;     //TODO: Support optional featuresets!
     deviceCreateInfo.flags = 0;
     deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -408,7 +406,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDevice()
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSurface(Window* pWindow)
 {
     VkResult res = VK_SUCCESS;
-#if _WIN32 || __LINUX__
+#if _WIN32 || __linux__
     res = glfwCreateWindowSurface(m_Instance, reinterpret_cast<GLFWwindow*>(pWindow->GetHandle()), nullptr, &m_Surface);
 #elif __ANDROID__
     VkAndroidSurfaceCreateInfoKHR createInfo = {};
@@ -479,6 +477,13 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
         return VK_PRESENT_MODE_FIFO_KHR;    //Fall back to FIFO. 
 
         }(presentModes);
+    
+    uint32_t imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) 
+    {
+        imageCount = capabilities.maxImageCount;
+    }
+
 
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {};
     swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -496,8 +501,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
     swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.imageFormat = format.format;
     swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;// VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    swapchainCreateInfo.minImageCount = capabilities.minImageCount + 1;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //| VK_IMAGE_USAGE_STORAGE_BIT;// VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainCreateInfo.minImageCount = imageCount;
     swapchainCreateInfo.imageColorSpace = format.colorSpace;
     swapchainCreateInfo.imageArrayLayers = 1;
 

@@ -15,8 +15,8 @@ namespace Onyx{
         constexpr uint8_t kMinor = 0;
         constexpr uint8_t kIssue = 1;
 
-        constexpr const char* kGitBranch = u8"dev/vulkan-initialization";
-        constexpr const char* kGitHash = u8"cc60d03";
+        constexpr const char* kGitBranch = u8"development";
+        constexpr const char* kGitHash = u8"2c26a34";
     }
 }
 

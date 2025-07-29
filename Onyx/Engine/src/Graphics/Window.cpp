@@ -1,7 +1,7 @@
 #include "../../include/Onyx/Graphics/Window.h"
 #include "../../include/Onyx/Utility/Logger.h"
 
-#if _WIN32 || __LINUX__
+#if _WIN32 || __linux__
 #include <GLFW/glfw3.h>
 #elif __ANDROID__
 #include <game-activity/native_app_glue/android_native_app_glue.h>
@@ -39,7 +39,7 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
     else {
         throw(std::runtime_error("Android App Context was nullptr!\n"));
     }
-#elif _WIN32 || __LINUX__
+#elif _WIN32 || __linux__
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     m_pHandle = static_cast<void*>(glfwCreateWindow(width, height, title, nullptr, nullptr));
@@ -54,7 +54,7 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
 
 void Onyx::Graphics::Window::Destroy() {
 
-#if _WIN32 || __LINUX__
+#if _WIN32 || __linux__
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_pHandle));
 #endif
 }

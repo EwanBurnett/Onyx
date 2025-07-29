@@ -78,7 +78,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 endif()
 
 # Desktop Only Libraries 
-if(WIN32 OR LINUX)
+if(WIN32 OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set(ONYX_PLATFORM_DESKTOP 1)
 
     # GLFW 
@@ -104,9 +104,9 @@ if(WIN32 OR LINUX)
         # FIND_PACKAGE_ARGS NAMES slang
     )
 
-    FetchContent_MakeAvailable(glfw nfd slang)
+    FetchContent_MakeAvailable(glfw nfd) #slang)
 
-    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw nfd slang)
+    set(ONYX_ENGINE_LIBRARIES ${ONYX_ENGINE_LIBRARIES} glfw nfd) #slang)
 endif()
 
 
