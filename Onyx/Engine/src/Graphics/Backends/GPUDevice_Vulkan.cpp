@@ -69,6 +69,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
     CreateSwapchain(pWindow);
 
     CreateVMAAllocator();
+
+    CreateDebugUtilsObjects(); 
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
@@ -76,6 +78,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
     vkDeviceWaitIdle(m_Device);
 
+    DestroyDebugUtilsObjects();
     DestroyVMAAllocator();
     DestroySwapchain();
     DestroySurface();
@@ -128,13 +131,10 @@ Onyx::Graphics::Buffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(co
             nameInfo.objectHandle = (uint64_t)buffer._buffer; 
             nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
 
-            //TODO: Load this function!
-            /*
             VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
             if(res != VK_SUCCESS){
                 Utility::Log::Warning("Unable to Register Buffer Name %s!\n", createInfo.name);
             }
-            */
         }
 
         //Set the VMA Allocation's name as well. 
@@ -626,6 +626,12 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySwapchain()
     Utility::Log::Debug("Destroying Vulkan Swapchain <0x%x>\n", m_Swapchain);
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
     m_Swapchain = VK_NULL_HANDLE;
+
+    //Destroy the image views too
+    for(VkImageView& view : m_SwapchainImageViews){
+        vkDestroyImageView(m_Device, view, nullptr);
+    }
+    m_SwapchainImageViews.clear();
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVMAAllocator()
@@ -656,6 +662,38 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyVMAAllocator()
 }
 
 
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDebugUtilsObjects()
+{
+    if(m_EnableDebugUtils){
+        Utility::Log::Debug("Creating Debug Utils Objects...\n"); 
+
+        //Create the DebugUtilsMessengerEXT object
+        VkDebugUtilsMessengerCreateInfoEXT createInfo = {}; 
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT; 
+        createInfo.pNext = nullptr; 
+        createInfo.flags = 0; 
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT; // | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT; // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+        createInfo.pfnUserCallback = DebugLogCallback; 
+
+
+        VkResult res = GPUDevice_Vulkan::vkCreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugUtilsMessenger);
+        if(res != VK_SUCCESS){
+            Utility::Log::Warning("Failed to create Debug Utils Objects!\n"); 
+        }
+    }
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDebugUtilsObjects()
+{
+    if(m_EnableDebugUtils){
+        Utility::Log::Debug("Destroying Debug Utils Objects...\n");
+
+       GPUDevice_Vulkan::vkDestroyDebugUtilsMessengerEXT(m_Instance, &m_DebugUtilsMessenger, nullptr);
+       m_DebugUtilsMessenger = VK_NULL_HANDLE;
+    }
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
     Utility::Log::Validation("Vulkan", "[%d : %s]\n%s\n", pCallbackData->messageIdNumber, pCallbackData->pMessageIdName, pCallbackData->pMessage);
@@ -665,10 +703,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DebugLo
 
 VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
-        func(instance, *pDebugMessenger, pAllocator);
-        return VK_SUCCESS;
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
     }
     else {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
@@ -681,6 +718,17 @@ VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkDestroyDebugUtilsMessengerE
     if (func != nullptr) {
         func(instance, *pDebugMessenger, pAllocator);
         return VK_SUCCESS;
+    }
+    else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+
+VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo){
+    auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_Instance, "vkSetDebugUtilsObjectNameEXT"); 
+    if(func != nullptr) {
+        return func(device, pNameInfo);
     }
     else {
         return VK_ERROR_EXTENSION_NOT_PRESENT;

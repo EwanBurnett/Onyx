@@ -43,12 +43,16 @@ namespace Onyx {
                 void CreateVMAAllocator(); 
                 void DestroyVMAAllocator();
 
+                void CreateDebugUtilsObjects(); 
+                void DestroyDebugUtilsObjects();
+
             private:
                 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
                 VkResult vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
                 VkResult vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT* pDebugMessenger, const VkAllocationCallbacks* pAllocator);
 
 
+                VkResult vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo); 
 
             private:
                 VkInstance m_Instance;
@@ -61,6 +65,9 @@ namespace Onyx {
                 VkExtent2D m_SwapchainExtent;
                 std::vector<VkImage> m_SwapchainImages; 
                 std::vector<VkImageView> m_SwapchainImageViews; 
+
+                VkDebugUtilsMessengerEXT m_DebugUtilsMessenger; 
+
 
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;

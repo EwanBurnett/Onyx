@@ -47,6 +47,7 @@ void App::Init() {
         m_Device->DestroyBuffer(buffer); 
         Onyx::Utility::Log::Debug("Destroyed buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
     }
+
     m_IsInitialized = true;
 
 }
