@@ -39,7 +39,8 @@ void App::Init() {
         createInfo.flags = {}; 
 
         //TODO: CreateBuffer(Buffer* pOutBuffer, const BufferCreateInfo& createInfo); ?
-        Onyx::Graphics::Buffer buffer = m_Device->CreateBuffer(createInfo); 
+        Onyx::Graphics::Buffer buffer = {};
+        m_Device->CreateBuffer(&createInfo, &buffer); 
 
         //Check buffer values
         Onyx::Utility::Log::Debug("Created buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);

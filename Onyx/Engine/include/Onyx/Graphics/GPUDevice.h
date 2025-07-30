@@ -2,6 +2,7 @@
 #define __GPU_DEVICE_H
 
 #include <vector> 
+#include "../Utility/OnyxResult.h"
 #include "Window.h"
 
 #include "Buffer.h"
@@ -17,7 +18,7 @@ namespace Onyx {
 
             virtual void CreateSwapchain(Window* pWindow); 
 
-            virtual Buffer CreateBuffer(const BufferCreateInfo& createInfo);
+            virtual OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer);
             virtual void DestroyBuffer(Buffer& buffer); 
         };
     }

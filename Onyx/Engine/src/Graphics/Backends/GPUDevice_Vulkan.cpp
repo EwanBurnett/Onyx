@@ -27,6 +27,7 @@ Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
     m_Surface = VK_NULL_HANDLE; 
     m_Swapchain = VK_NULL_HANDLE;
     m_VMAAllocator = VK_NULL_HANDLE; 
+    m_DebugUtilsMessenger = VK_NULL_HANDLE;
 
     m_EnableDebugUtils = false; 
 
@@ -88,34 +89,33 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 
 
 
-Onyx::Graphics::Buffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo& createInfo){
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer){
 
     //Iniitalize the output buffer.
-    Buffer buffer{};
-    buffer.name = createInfo.name;
-    buffer.size = createInfo.size; 
-    buffer._buffer = VK_NULL_HANDLE; 
-    buffer._alloc = VK_NULL_HANDLE; 
+    pBuffer->name = pCreateInfo->name;
+    pBuffer->size = pCreateInfo->size; 
+    pBuffer->_buffer = VK_NULL_HANDLE; 
+    pBuffer->_alloc = VK_NULL_HANDLE; 
 
     //Create the buffer and its allocation handle. 
     {
         VkBufferCreateInfo bufferCreateInfo = {};
         bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferCreateInfo.pNext = nullptr;
-        bufferCreateInfo.size = createInfo.size;
-        bufferCreateInfo.usage = createInfo.usage;
+        bufferCreateInfo.size = pCreateInfo->size;
+        bufferCreateInfo.usage = pCreateInfo->usage;
         bufferCreateInfo.queueFamilyIndexCount = 1;
         bufferCreateInfo.pQueueFamilyIndices = &m_QueueFamilyIndex;     //TODO: Multiple Queue Family Support!
         bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VmaAllocationCreateInfo allocInfo = {};
-        allocInfo.flags = createInfo.flags;
+        allocInfo.flags = pCreateInfo->flags;
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-        VkResult res = vmaCreateBuffer(m_VMAAllocator, &bufferCreateInfo, &allocInfo, &buffer._buffer, &buffer._alloc, nullptr);
+        VkResult res = vmaCreateBuffer(m_VMAAllocator, &bufferCreateInfo, &allocInfo, &pBuffer->_buffer, &pBuffer->_alloc, nullptr);
         if(res != VK_SUCCESS){
-            Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Buffer %s!\n", createInfo.name);
-            throw std::runtime_error("Failed to create Buffer!\n"); 
+            Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Buffer %s!\n", pCreateInfo->name);
+            return OnyxResult::ONYX_FAILED;//TODO: Failure reason! 
         }
     }
 
@@ -127,22 +127,22 @@ Onyx::Graphics::Buffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(co
             VkDebugUtilsObjectNameInfoEXT nameInfo = {}; 
             nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; 
             nameInfo.pNext = nullptr; 
-            nameInfo.pObjectName = createInfo.name;
-            nameInfo.objectHandle = (uint64_t)buffer._buffer; 
+            nameInfo.pObjectName = pCreateInfo->name;
+            nameInfo.objectHandle = (uint64_t)pBuffer->_buffer; 
             nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
 
             VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
             if(res != VK_SUCCESS){
-                Utility::Log::Warning("Unable to Register Buffer Name %s!\n", createInfo.name);
+                Utility::Log::Warning("Unable to Register Buffer Name %s!\n", pCreateInfo->name);
             }
         }
 
         //Set the VMA Allocation's name as well. 
-        vmaSetAllocationName(m_VMAAllocator, buffer._alloc, createInfo.name); 
+        vmaSetAllocationName(m_VMAAllocator, pBuffer->_alloc, pCreateInfo->name); 
     }
 
 
-    return buffer; 
+    return OnyxResult::ONYX_SUCCESS; 
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer){

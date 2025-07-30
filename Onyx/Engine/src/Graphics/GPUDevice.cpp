@@ -12,8 +12,8 @@ void Onyx::Graphics::GPUDevice::CreateSwapchain(Window* pWindow) {
 
 }
 
-Onyx::Graphics::Buffer Onyx::Graphics::GPUDevice::CreateBuffer(const BufferCreateInfo& createInfo){
-    return Buffer{}; 
+Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer){
+    return OnyxResult::ONYX_NOT_IMPLEMENTED; 
 }
 
 void Onyx::Graphics::GPUDevice::DestroyBuffer(Buffer& buffer){

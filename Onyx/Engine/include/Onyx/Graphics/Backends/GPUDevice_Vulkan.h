@@ -23,7 +23,7 @@ namespace Onyx {
 
                 void CreateSwapchain(Window* pWindow) override; 
 
-                Buffer CreateBuffer(const BufferCreateInfo& createInfo) override; 
+                OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override; 
                 void DestroyBuffer(Buffer& buffer) override; 
 
             private:
