@@ -9,6 +9,7 @@
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
 #include <cstring>
+#include <vulkan/vk_enum_string_helper.h>
 
 #if _WIN32 || __linux__ 
 #include <GLFW/glfw3.h>
@@ -135,7 +136,7 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const Bu
 
             VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
             if(res != VK_SUCCESS){
-                Utility::Log::Warning("Unable to Register Buffer Name %s!\n", pCreateInfo->name);
+                Utility::Log::Warning("Unable to Register Buffer Name %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
             }
         }
 
@@ -159,6 +160,161 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer){
     buffer._alloc = VK_NULL_HANDLE;
     buffer._buffer = VK_NULL_HANDLE; 
 }
+
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture){
+    std::unique_lock<std::shared_mutex> lck(pTexture->_Lock);
+
+    //Create the VkImage
+    {
+        VkImageCreateInfo createInfo = {}; 
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO; 
+        createInfo.pNext = nullptr; 
+        createInfo.flags = 0; 
+        switch(pCreateInfo->type){
+            case ETextureType::TEXTURE_1D: 
+                createInfo.imageType = VK_IMAGE_TYPE_1D;
+                break; 
+            case ETextureType::TEXTURE_2D: 
+                createInfo.imageType = VK_IMAGE_TYPE_2D;
+                break; 
+            case ETextureType::TEXTURE_3D: 
+                createInfo.imageType = VK_IMAGE_TYPE_3D;
+                break; 
+            case ETextureType::TEXTURE_CUBE: 
+                createInfo.imageType = VK_IMAGE_TYPE_2D;
+                createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+                break; 
+            default: 
+                createInfo.flags = 0; 
+                break;
+        }
+        
+        createInfo.format = pCreateInfo->format;    //TODO: Format Enum!
+                                                    
+        createInfo.arrayLayers = 1; 
+        createInfo.extent.width = pCreateInfo->width; 
+        createInfo.extent.height = pCreateInfo->height; 
+        createInfo.extent.depth = pCreateInfo->depth; 
+        createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        createInfo.queueFamilyIndexCount = 1; 
+        createInfo.pQueueFamilyIndices = &m_QueueFamilyIndex; 
+        createInfo.mipLevels = pCreateInfo->mipLevels;   //TODO: Mipmapping support!
+        createInfo.samples = pCreateInfo->samples;     //TODO: MSAA support!
+        createInfo.tiling = pCreateInfo->tiling;     //TODO: Linear if mapped, Optimal otherwise
+        createInfo.usage = pCreateInfo->usage; 
+
+        VmaAllocationCreateInfo allocInfo = {}; 
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocInfo.flags = 0u; 
+
+        
+        VkResult res = vmaCreateImage(m_VMAAllocator, &createInfo, &allocInfo, &pTexture->_image, &pTexture->_alloc, nullptr);
+        if(res != VK_SUCCESS){
+            Utility::Log::Warning("Failed to create Texture %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
+            return OnyxResult::ONYX_FAILED;//TODO: Failure reason! 
+        }
+
+    }
+
+    /*
+    //Create the VkImageView
+    //TODO: Split images from their views???
+    {
+        VkImageViewCreateInfo createInfo = {}; 
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO; 
+        createInfo.pNext = nullptr; 
+        createInfo.flags = 0; 
+        createInfo.image = pTexture->_image;
+        createInfo.format = pCreateInfo->format; 
+        createInfo.flags = 0; 
+        switch(pCreateInfo->type){
+            case ETextureType::TEXTURE_1D: 
+                createInfo.viewType = VK_IMAGE_VIEW_TYPE_1D;
+                break; 
+            case ETextureType::TEXTURE_2D: 
+                createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+                break; 
+            case ETextureType::TEXTURE_3D: 
+                createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+                break; 
+            case ETextureType::TEXTURE_CUBE: 
+                createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+                createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+                break; 
+            default: 
+                createInfo.flags = 0; 
+                break; 
+        }
+       createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+       createInfo.subresourceRange.baseArrayLayer = 0;
+       createInfo.subresourceRange.baseMipLevel = 0;
+       createInfo.subresourceRange.layerCount = 1;
+       createInfo.subresourceRange.levelCount = 1;
+
+    }
+    */
+
+    //Register Debug Names
+    if(m_EnableDebugUtils)
+    {
+            VkDebugUtilsObjectNameInfoEXT nameInfo = {}; 
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; 
+            nameInfo.pNext = nullptr; 
+            nameInfo.pObjectName = pCreateInfo->name;
+            nameInfo.objectHandle = (uint64_t)pTexture->_image;
+            nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
+
+            VkResult res = VK_SUCCESS;
+            res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
+            if(res != VK_SUCCESS){
+                Utility::Log::Warning("Unable to Register Image Name %s!\n", pCreateInfo->name);
+            }
+
+            /*
+            nameInfo.objectHandle = (uint64_t)pTexture->_view; 
+            nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW; 
+ 
+            res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
+            */
+
+            if(res != VK_SUCCESS){
+                Utility::Log::Warning("Unable to Register Image View Name %s!\n", pCreateInfo->name);
+            }
+
+            //vmaSetAllocationName(m_VMAAllocator, pTexture->_alloc, pCreateInfo->name); 
+
+    }
+
+
+    pTexture->name = pCreateInfo->name; 
+    pTexture->width = pCreateInfo->width; 
+    pTexture->height = pCreateInfo->height; 
+    pTexture->depth = pCreateInfo->depth;
+    pTexture->type = pCreateInfo->type;
+
+    return OnyxResult::ONYX_SUCCESS;
+}
+
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyTexture(Texture& texture){
+    std::unique_lock<std::shared_mutex> lck(texture._Lock);
+    
+    //Destroy the texture 
+    //vkDestroyImageView(m_Device, texture._view, nullptr);  
+
+    vmaDestroyImage(m_VMAAllocator, texture._image, texture._alloc);
+
+    //Invalidate the texture's data
+    texture.name = "NULL"; 
+    texture.width = -1; 
+    texture.height = -1; 
+    texture.depth = -1;
+    texture._alloc = VK_NULL_HANDLE; 
+    texture._image = VK_NULL_HANDLE;
+    //texture._view = VK_NULL_HANDLE;
+}
+
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion)
 {

@@ -26,6 +26,9 @@ namespace Onyx {
                 OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override; 
                 void DestroyBuffer(Buffer& buffer) override; 
 
+                OnyxResult CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture) override; 
+                void DestroyTexture(Texture& buffer) override; 
+
             private:
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion);
                 void DestroyInstance();

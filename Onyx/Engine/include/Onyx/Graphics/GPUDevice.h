@@ -6,6 +6,7 @@
 #include "Window.h"
 
 #include "Buffer.h"
+#include "Texture.h"
 
 namespace Onyx {
     namespace Graphics {
@@ -20,6 +21,11 @@ namespace Onyx {
 
             virtual OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer);
             virtual void DestroyBuffer(Buffer& buffer); 
+
+            virtual OnyxResult CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture);
+            virtual void DestroyTexture(Texture& buffer); 
+
+
         };
     }
 }

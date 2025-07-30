@@ -43,12 +43,35 @@ void App::Init() {
         m_Device->CreateBuffer(&createInfo, &buffer); 
 
 
-        Onyx::Utility::Log::Debug("Sizeof(Buffer) = %d\n%d\n", sizeof(Onyx::Graphics::Buffer), sizeof(std::shared_mutex));
+        Onyx::Utility::Log::Debug("Sizeof(Buffer) = %d\n", sizeof(Onyx::Graphics::Buffer));
         //Check buffer values
         Onyx::Utility::Log::Debug("Created buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
 
         m_Device->DestroyBuffer(buffer); 
         Onyx::Utility::Log::Debug("Destroyed buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
+    }
+    {
+        Onyx::Utility::Log::Debug("Sizeof(Texture) = %d\n", sizeof(Onyx::Graphics::Buffer));
+        Onyx::Graphics::TextureCreateInfo createInfo = {}; 
+        createInfo.name = "Debug Texture"; 
+        createInfo.width = 1024; 
+        createInfo.height = 1024;
+        createInfo.depth = 1; 
+        createInfo.type = Onyx::Graphics::ETextureType::TEXTURE_2D; 
+        createInfo.format = VK_FORMAT_R8G8B8A8_SRGB; 
+        createInfo.mipLevels = 1; 
+        createInfo.samples = VK_SAMPLE_COUNT_1_BIT; 
+        createInfo.tiling = VK_IMAGE_TILING_LINEAR; 
+        createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT; 
+
+        printf("hi!\n");
+        Onyx::Graphics::Texture texture = {}; 
+        m_Device->CreateTexture(&createInfo, &texture);
+        Onyx::Utility::Log::Debug("Created Texture!\nName: %s\nWidth:%d\nHeight: %d\nDepth: %d\nVkImage Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", texture.name, texture.width, texture.height, texture.depth, texture._image, texture._alloc);
+
+        m_Device->DestroyTexture(texture); 
+        Onyx::Utility::Log::Debug("Destroyed Texture!\nName: %s\nWidth:%d\nHeight: %d\nDepth: %d\nVkImage Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", texture.name, texture.width, texture.height, texture.depth, texture._image, texture._alloc);
+
     }
 
     m_IsInitialized = true;

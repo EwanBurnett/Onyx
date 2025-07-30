@@ -9,8 +9,8 @@
 
 namespace Onyx{
     namespace Graphics{
-        
-       struct BufferCreateInfo{
+
+        struct BufferCreateInfo{
             const char* name; 
             uint64_t size; 
             VkBufferUsageFlagBits usage;    //TODO: Replace with Onyx internal type...

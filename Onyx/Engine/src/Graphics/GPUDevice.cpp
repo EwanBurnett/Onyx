@@ -19,3 +19,12 @@ Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateBuffer(const BufferCreateInfo*
 void Onyx::Graphics::GPUDevice::DestroyBuffer(Buffer& buffer){
 
 }
+
+Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture){
+    return OnyxResult::ONYX_NOT_IMPLEMENTED; 
+}
+
+void Onyx::Graphics::GPUDevice::DestroyTexture(Texture& buffer){
+
+}
+
