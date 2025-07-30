@@ -5,18 +5,20 @@
 #include "vk_mem_alloc.h"
 
 #include <cstdint>
+#include <shared_mutex>
 
 namespace Onyx{
     namespace Graphics{
         
-        struct BufferCreateInfo{
+       struct BufferCreateInfo{
             const char* name; 
             uint64_t size; 
             VkBufferUsageFlagBits usage;    //TODO: Replace with Onyx internal type...
             VmaAllocationCreateFlagBits flags; 
         };
 
-        struct Buffer{
+        struct alignas(16) Buffer{
+            //TODO: promote to a class to protect member variables!
             const char* name; 
             uint64_t size; 
             
@@ -27,6 +29,8 @@ namespace Onyx{
                     VmaAllocation _alloc; 
                 };
             }; 
+
+            std::shared_mutex _Lock;
 
         };
     }

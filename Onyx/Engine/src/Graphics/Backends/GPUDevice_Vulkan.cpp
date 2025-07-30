@@ -88,8 +88,10 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 }
 
 
-
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer){
+
+    //Exclusive resource access via shared_mutex
+    std::unique_lock<std::shared_mutex> lck(pBuffer->_Lock);
 
     //Iniitalize the output buffer.
     pBuffer->name = pCreateInfo->name;
@@ -146,6 +148,8 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const Bu
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer){
+    std::unique_lock<std::shared_mutex> lck(buffer._Lock);
+
     //Destroy the buffer via VMA. 
     vmaDestroyBuffer(m_VMAAllocator, buffer._buffer, buffer._alloc); 
 
@@ -696,7 +700,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDebugUtilsObjects()
 
 VKAPI_ATTR VkBool32 VKAPI_CALL Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DebugLogCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
-    Utility::Log::Validation("Vulkan", "[%d : %s]\n%s\n", pCallbackData->messageIdNumber, pCallbackData->pMessageIdName, pCallbackData->pMessage);
+    Utility::Log::Validation("Vulkan", "[%d : %s]\t%s\n", pCallbackData->messageIdNumber, pCallbackData->pMessageIdName, pCallbackData->pMessage);
 
     return VK_FALSE;
 }
