@@ -18,6 +18,26 @@ namespace Onyx{
             ETextureType_MAX, 
         };
 
+        enum class ESampleCount{
+            SAMPLE_COUNT_1, 
+            SAMPLE_COUNT_2, 
+            SAMPLE_COUNT_4, 
+            SAMPLE_COUNT_8, 
+            SAMPLE_COUNT_16, 
+            SAMPLE_COUNT_32, 
+            SAMPLE_COUNT_64, 
+            ESampleCount_MAX
+        };
+
+        enum class EFormat{
+            FORMAT_UNDEFINED, 
+            FORMAT_R8_UNORM,    //VK_FORMAT_R8_UNORM / DXGI_FORMAT_R8_UNORM
+            FORMAT_R8_SNORM, 
+            //TODO: Format.h 
+
+            EFormat_MAX
+        };
+
         struct TextureCreateInfo{
             const char* name;
             ETextureType type;
@@ -28,7 +48,7 @@ namespace Onyx{
             //TODO: 
             VkFormat format; 
             uint32_t mipLevels; 
-            VkSampleCountFlagBits samples; 
+            ESampleCount sampleCount; 
             VkImageTiling tiling; 
             VkImageUsageFlags usage; 
         };

@@ -60,7 +60,7 @@ void App::Init() {
         createInfo.type = Onyx::Graphics::ETextureType::TEXTURE_2D; 
         createInfo.format = VK_FORMAT_R8G8B8A8_SRGB; 
         createInfo.mipLevels = 1; 
-        createInfo.samples = VK_SAMPLE_COUNT_1_BIT; 
+        createInfo.samples = Onyx::Graphics::ESampleCount::SAMPLE_COUNT_1; 
         createInfo.tiling = VK_IMAGE_TILING_LINEAR; 
         createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT; 
 

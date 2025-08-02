@@ -199,8 +199,31 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
         createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         createInfo.queueFamilyIndexCount = 1; 
         createInfo.pQueueFamilyIndices = &m_QueueFamilyIndex; 
-        createInfo.mipLevels = pCreateInfo->mipLevels;   //TODO: Mipmapping support!
-        createInfo.samples = pCreateInfo->samples;     //TODO: MSAA support!
+        createInfo.mipLevels = pCreateInfo->mipLevels;
+        switch(pCreateInfo->sampleCount){
+            case ESampleCount::SAMPLE_COUNT_2: 
+                createInfo.samples = VK_SAMPLE_COUNT_2_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_4: 
+                createInfo.samples = VK_SAMPLE_COUNT_4_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_8: 
+                createInfo.samples = VK_SAMPLE_COUNT_8_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_16: 
+                createInfo.samples = VK_SAMPLE_COUNT_16_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_32: 
+                createInfo.samples = VK_SAMPLE_COUNT_32_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_64: 
+                createInfo.samples = VK_SAMPLE_COUNT_64_BIT;
+                break; 
+            case ESampleCount::SAMPLE_COUNT_1: 
+            default: 
+                createInfo.samples = VK_SAMPLE_COUNT_1_BIT; 
+                break; 
+        }
         createInfo.tiling = pCreateInfo->tiling;     //TODO: Linear if mapped, Optimal otherwise
         createInfo.usage = pCreateInfo->usage; 
 
