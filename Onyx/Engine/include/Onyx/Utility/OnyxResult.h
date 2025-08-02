@@ -6,6 +6,7 @@ namespace Onyx{
         ONYX_SUCCESS = 0, 
         ONYX_FAILED = -1, 
         ONYX_NOT_IMPLEMENTED = -2, 
+        ONYX_TIMEOUT = -3, 
 
         OnyxResult_MAX
     };

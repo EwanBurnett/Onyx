@@ -29,6 +29,10 @@ namespace Onyx{
             ESampleCount_MAX
         };
 
+        enum class ETextureUsage {
+            
+        };
+
         enum class EFormat{
             FORMAT_UNDEFINED, 
             FORMAT_R8_UNORM,    //VK_FORMAT_R8_UNORM / DXGI_FORMAT_R8_UNORM

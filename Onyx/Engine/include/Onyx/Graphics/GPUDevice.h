@@ -7,6 +7,7 @@
 
 #include "Buffer.h"
 #include "Texture.h"
+#include "Fence.h"
 
 namespace Onyx {
     namespace Graphics {
@@ -25,6 +26,10 @@ namespace Onyx {
             virtual OnyxResult CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture);
             virtual void DestroyTexture(Texture& buffer); 
 
+            virtual OnyxResult CreateFence(const uint64_t initialValue, Fence* pFence, const char* name = nullptr) ;
+            virtual void DestroyFence(Fence& fence); 
+            virtual OnyxResult SignalFence(Fence& fence, const uint64_t value) ;
+            virtual OnyxResult WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll = true) ; 
 
         };
     }

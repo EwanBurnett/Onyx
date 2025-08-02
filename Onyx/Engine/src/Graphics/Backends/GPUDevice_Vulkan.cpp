@@ -20,17 +20,17 @@
 
 Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
 {
-    m_Instance = VK_NULL_HANDLE; 
-    m_PhysicalDevice = VK_NULL_HANDLE; 
-    m_Device = VK_NULL_HANDLE; 
-    m_Queue = VK_NULL_HANDLE; 
-    m_QueueFamilyIndex = -1; 
-    m_Surface = VK_NULL_HANDLE; 
+    m_Instance = VK_NULL_HANDLE;
+    m_PhysicalDevice = VK_NULL_HANDLE;
+    m_Device = VK_NULL_HANDLE;
+    m_Queue = VK_NULL_HANDLE;
+    m_QueueFamilyIndex = -1;
+    m_Surface = VK_NULL_HANDLE;
     m_Swapchain = VK_NULL_HANDLE;
-    m_VMAAllocator = VK_NULL_HANDLE; 
+    m_VMAAllocator = VK_NULL_HANDLE;
     m_DebugUtilsMessenger = VK_NULL_HANDLE;
 
-    m_EnableDebugUtils = false; 
+    m_EnableDebugUtils = false;
 
 }
 
@@ -72,7 +72,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     CreateVMAAllocator();
 
-    CreateDebugUtilsObjects(); 
+    CreateDebugUtilsObjects();
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
@@ -89,16 +89,16 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 }
 
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer){
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) {
 
     //Exclusive resource access via shared_mutex
     std::unique_lock<std::shared_mutex> lck(pBuffer->_Lock);
 
     //Iniitalize the output buffer.
     pBuffer->name = pCreateInfo->name;
-    pBuffer->size = pCreateInfo->size; 
-    pBuffer->_buffer = VK_NULL_HANDLE; 
-    pBuffer->_alloc = VK_NULL_HANDLE; 
+    pBuffer->size = pCreateInfo->size;
+    pBuffer->_buffer = VK_NULL_HANDLE;
+    pBuffer->_alloc = VK_NULL_HANDLE;
 
     //Create the buffer and its allocation handle. 
     {
@@ -116,7 +116,7 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const Bu
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
         VkResult res = vmaCreateBuffer(m_VMAAllocator, &bufferCreateInfo, &allocInfo, &pBuffer->_buffer, &pBuffer->_alloc, nullptr);
-        if(res != VK_SUCCESS){
+        if (res != VK_SUCCESS) {
             Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Buffer %s!\n", pCreateInfo->name);
             return OnyxResult::ONYX_FAILED;//TODO: Failure reason! 
         }
@@ -124,116 +124,121 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const Bu
 
     //Register the buffer's object name 
     //TODO: + tag
-    if(m_EnableDebugUtils){
+    if (m_EnableDebugUtils) {
         //Register the VkBuffer Object
         {
-            VkDebugUtilsObjectNameInfoEXT nameInfo = {}; 
-            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; 
-            nameInfo.pNext = nullptr; 
+            VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.pNext = nullptr;
             nameInfo.pObjectName = pCreateInfo->name;
-            nameInfo.objectHandle = (uint64_t)pBuffer->_buffer; 
+            nameInfo.objectHandle = (uint64_t)pBuffer->_buffer;
             nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
 
-            VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
-            if(res != VK_SUCCESS){
+            VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+            if (res != VK_SUCCESS) {
                 Utility::Log::Warning("Unable to Register Buffer Name %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
             }
         }
 
         //Set the VMA Allocation's name as well. 
-        vmaSetAllocationName(m_VMAAllocator, pBuffer->_alloc, pCreateInfo->name); 
+        vmaSetAllocationName(m_VMAAllocator, pBuffer->_alloc, pCreateInfo->name);
     }
 
 
-    return OnyxResult::ONYX_SUCCESS; 
+    return OnyxResult::ONYX_SUCCESS;
 }
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer){
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer) {
     std::unique_lock<std::shared_mutex> lck(buffer._Lock);
 
     //Destroy the buffer via VMA. 
-    vmaDestroyBuffer(m_VMAAllocator, buffer._buffer, buffer._alloc); 
+    vmaDestroyBuffer(m_VMAAllocator, buffer._buffer, buffer._alloc);
 
     //Invalidate the buffer's data. 
     buffer.name = "NULL";
-    buffer.size = -1; 
+    buffer.size = -1;
     buffer._alloc = VK_NULL_HANDLE;
-    buffer._buffer = VK_NULL_HANDLE; 
+    buffer._buffer = VK_NULL_HANDLE;
 }
 
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture){
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture) {
     std::unique_lock<std::shared_mutex> lck(pTexture->_Lock);
 
+    //TODO: Evaluate the maximum supported Sample Count for this texture type. 
+    VkSampleCountFlags sampleCount = VK_SAMPLE_COUNT_1_BIT;
+    {
+
+    }
     //Create the VkImage
     {
-        VkImageCreateInfo createInfo = {}; 
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO; 
-        createInfo.pNext = nullptr; 
-        createInfo.flags = 0; 
-        switch(pCreateInfo->type){
-            case ETextureType::TEXTURE_1D: 
-                createInfo.imageType = VK_IMAGE_TYPE_1D;
-                break; 
-            case ETextureType::TEXTURE_2D: 
-                createInfo.imageType = VK_IMAGE_TYPE_2D;
-                break; 
-            case ETextureType::TEXTURE_3D: 
-                createInfo.imageType = VK_IMAGE_TYPE_3D;
-                break; 
-            case ETextureType::TEXTURE_CUBE: 
-                createInfo.imageType = VK_IMAGE_TYPE_2D;
-                createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-                break; 
-            default: 
-                createInfo.flags = 0; 
-                break;
+        VkImageCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
+        switch (pCreateInfo->type) {
+        case ETextureType::TEXTURE_1D:
+            createInfo.imageType = VK_IMAGE_TYPE_1D;
+            break;
+        case ETextureType::TEXTURE_2D:
+            createInfo.imageType = VK_IMAGE_TYPE_2D;
+            break;
+        case ETextureType::TEXTURE_3D:
+            createInfo.imageType = VK_IMAGE_TYPE_3D;
+            break;
+        case ETextureType::TEXTURE_CUBE:
+            createInfo.imageType = VK_IMAGE_TYPE_2D;
+            createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+            break;
+        default:
+            createInfo.flags = 0;
+            break;
         }
-        
+
         createInfo.format = pCreateInfo->format;    //TODO: Format Enum!
-                                                    
-        createInfo.arrayLayers = 1; 
-        createInfo.extent.width = pCreateInfo->width; 
-        createInfo.extent.height = pCreateInfo->height; 
-        createInfo.extent.depth = pCreateInfo->depth; 
+
+        createInfo.arrayLayers = 1;
+        createInfo.extent.width = pCreateInfo->width;
+        createInfo.extent.height = pCreateInfo->height;
+        createInfo.extent.depth = pCreateInfo->depth;
         createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        createInfo.queueFamilyIndexCount = 1; 
-        createInfo.pQueueFamilyIndices = &m_QueueFamilyIndex; 
+        createInfo.queueFamilyIndexCount = 1;
+        createInfo.pQueueFamilyIndices = &m_QueueFamilyIndex;
         createInfo.mipLevels = pCreateInfo->mipLevels;
-        switch(pCreateInfo->sampleCount){
-            case ESampleCount::SAMPLE_COUNT_2: 
-                createInfo.samples = VK_SAMPLE_COUNT_2_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_4: 
-                createInfo.samples = VK_SAMPLE_COUNT_4_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_8: 
-                createInfo.samples = VK_SAMPLE_COUNT_8_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_16: 
-                createInfo.samples = VK_SAMPLE_COUNT_16_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_32: 
-                createInfo.samples = VK_SAMPLE_COUNT_32_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_64: 
-                createInfo.samples = VK_SAMPLE_COUNT_64_BIT;
-                break; 
-            case ESampleCount::SAMPLE_COUNT_1: 
-            default: 
-                createInfo.samples = VK_SAMPLE_COUNT_1_BIT; 
-                break; 
+        switch (pCreateInfo->sampleCount) {
+        case ESampleCount::SAMPLE_COUNT_2:
+            createInfo.samples = VK_SAMPLE_COUNT_2_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_4:
+            createInfo.samples = VK_SAMPLE_COUNT_4_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_8:
+            createInfo.samples = VK_SAMPLE_COUNT_8_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_16:
+            createInfo.samples = VK_SAMPLE_COUNT_16_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_32:
+            createInfo.samples = VK_SAMPLE_COUNT_32_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_64:
+            createInfo.samples = VK_SAMPLE_COUNT_64_BIT;
+            break;
+        case ESampleCount::SAMPLE_COUNT_1:
+        default:
+            createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            break;
         }
         createInfo.tiling = pCreateInfo->tiling;     //TODO: Linear if mapped, Optimal otherwise
-        createInfo.usage = pCreateInfo->usage; 
+        createInfo.usage = pCreateInfo->usage;
 
-        VmaAllocationCreateInfo allocInfo = {}; 
+        VmaAllocationCreateInfo allocInfo = {};
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        allocInfo.flags = 0u; 
+        allocInfo.flags = 0u;
 
-        
+
         VkResult res = vmaCreateImage(m_VMAAllocator, &createInfo, &allocInfo, &pTexture->_image, &pTexture->_alloc, nullptr);
-        if(res != VK_SUCCESS){
+        if (res != VK_SUCCESS) {
             Utility::Log::Warning("Failed to create Texture %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
             return OnyxResult::ONYX_FAILED;//TODO: Failure reason! 
         }
@@ -244,30 +249,30 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
     //Create the VkImageView
     //TODO: Split images from their views???
     {
-        VkImageViewCreateInfo createInfo = {}; 
-        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO; 
-        createInfo.pNext = nullptr; 
-        createInfo.flags = 0; 
+        VkImageViewCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
         createInfo.image = pTexture->_image;
-        createInfo.format = pCreateInfo->format; 
-        createInfo.flags = 0; 
+        createInfo.format = pCreateInfo->format;
+        createInfo.flags = 0;
         switch(pCreateInfo->type){
-            case ETextureType::TEXTURE_1D: 
+            case ETextureType::TEXTURE_1D:
                 createInfo.viewType = VK_IMAGE_VIEW_TYPE_1D;
-                break; 
-            case ETextureType::TEXTURE_2D: 
+                break;
+            case ETextureType::TEXTURE_2D:
                 createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-                break; 
-            case ETextureType::TEXTURE_3D: 
+                break;
+            case ETextureType::TEXTURE_3D:
                 createInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
-                break; 
-            case ETextureType::TEXTURE_CUBE: 
+                break;
+            case ETextureType::TEXTURE_CUBE:
                 createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
                 createInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-                break; 
-            default: 
-                createInfo.flags = 0; 
-                break; 
+                break;
+            default:
+                createInfo.flags = 0;
+                break;
         }
        createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
        createInfo.subresourceRange.baseArrayLayer = 0;
@@ -279,40 +284,40 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
     */
 
     //Register Debug Names
-    if(m_EnableDebugUtils)
+    if (m_EnableDebugUtils)
     {
-            VkDebugUtilsObjectNameInfoEXT nameInfo = {}; 
-            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT; 
-            nameInfo.pNext = nullptr; 
-            nameInfo.pObjectName = pCreateInfo->name;
-            nameInfo.objectHandle = (uint64_t)pTexture->_image;
-            nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.pObjectName = pCreateInfo->name;
+        nameInfo.objectHandle = (uint64_t)pTexture->_image;
+        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
 
-            VkResult res = VK_SUCCESS;
-            res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
-            if(res != VK_SUCCESS){
-                Utility::Log::Warning("Unable to Register Image Name %s!\n", pCreateInfo->name);
-            }
+        VkResult res = VK_SUCCESS;
+        res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        if (res != VK_SUCCESS) {
+            Utility::Log::Warning("Unable to Register Image Name %s!\n", pCreateInfo->name);
+        }
 
-            /*
-            nameInfo.objectHandle = (uint64_t)pTexture->_view; 
-            nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW; 
- 
-            res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo); 
-            */
+        /*
+        nameInfo.objectHandle = (uint64_t)pTexture->_view;
+        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
 
-            if(res != VK_SUCCESS){
-                Utility::Log::Warning("Unable to Register Image View Name %s!\n", pCreateInfo->name);
-            }
+        res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        */
 
-            //vmaSetAllocationName(m_VMAAllocator, pTexture->_alloc, pCreateInfo->name); 
+        if (res != VK_SUCCESS) {
+            Utility::Log::Warning("Unable to Register Image View Name %s!\n", pCreateInfo->name);
+        }
+
+        //vmaSetAllocationName(m_VMAAllocator, pTexture->_alloc, pCreateInfo->name); 
 
     }
 
 
-    pTexture->name = pCreateInfo->name; 
-    pTexture->width = pCreateInfo->width; 
-    pTexture->height = pCreateInfo->height; 
+    pTexture->name = pCreateInfo->name;
+    pTexture->width = pCreateInfo->width;
+    pTexture->height = pCreateInfo->height;
     pTexture->depth = pCreateInfo->depth;
     pTexture->type = pCreateInfo->type;
 
@@ -320,22 +325,114 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
 }
 
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyTexture(Texture& texture){
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyTexture(Texture& texture) {
     std::unique_lock<std::shared_mutex> lck(texture._Lock);
-    
+
     //Destroy the texture 
     //vkDestroyImageView(m_Device, texture._view, nullptr);  
 
     vmaDestroyImage(m_VMAAllocator, texture._image, texture._alloc);
 
     //Invalidate the texture's data
-    texture.name = "NULL"; 
-    texture.width = -1; 
-    texture.height = -1; 
+    texture.name = "NULL";
+    texture.width = -1;
+    texture.height = -1;
     texture.depth = -1;
-    texture._alloc = VK_NULL_HANDLE; 
+    texture._alloc = VK_NULL_HANDLE;
     texture._image = VK_NULL_HANDLE;
     //texture._view = VK_NULL_HANDLE;
+}
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateFence(const uint64_t initialValue, Fence* pFence, const char* name) 
+{
+    {
+        VkSemaphoreTypeCreateInfo timelineCreateInfo = {};
+        timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineCreateInfo.pNext = nullptr;
+        timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineCreateInfo.initialValue = initialValue;
+
+        VkSemaphoreCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        createInfo.pNext = &timelineCreateInfo;
+        createInfo.flags = 0;
+
+        VkResult res = vkCreateSemaphore(m_Device, &createInfo, nullptr, &pFence->Get()._fence);
+        if (res != VK_SUCCESS) {
+            Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Fence Object <0x%08x>!\t%s\n", pFence, string_VkResult(res));
+            return OnyxResult::ONYX_FAILED;
+        }
+    }
+
+
+    if (m_EnableDebugUtils && name != nullptr)  //TODO: Consider using std::string&, or a wrapper...
+    {
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.pObjectName = name;
+        nameInfo.objectHandle = (uint64_t)pFence->Get()._fence;
+        nameInfo.objectType = VK_OBJECT_TYPE_SEMAPHORE;
+
+        VkResult res = VK_SUCCESS;
+        res = GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        if (res != VK_SUCCESS) {
+            Utility::Log::Warning("Unable to Register Fence Name %s!\n", name);
+        }
+    }
+
+
+    return OnyxResult::ONYX_SUCCESS;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyFence(Fence& fence)
+{
+    vkDestroySemaphore(m_Device, fence.Get()._fence, nullptr);
+}
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::SignalFence(Fence& fence, const uint64_t value) 
+{
+    VkSemaphoreSignalInfo signalInfo = {}; 
+    signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO; 
+    signalInfo.pNext = nullptr; 
+    signalInfo.semaphore = fence.Get()._fence; 
+    signalInfo.value = value; 
+
+    VkResult res = vkSignalSemaphore(m_Device, &signalInfo); 
+    if (res != VK_SUCCESS) {
+        Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to Signal Fence <0x%08x> with value %d!\t%s\n", fence.Get()._fence, value, string_VkResult(res)); 
+        return OnyxResult::ONYX_FAILED; 
+    }
+
+    return OnyxResult::ONYX_SUCCESS; 
+}
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t * pValues, const uint64_t timeout, const bool waitForAll)
+{
+    //Extract the list of Timeline semaphores to wait on. 
+    std::vector<VkSemaphore> semaphores(count); 
+    for (int i = 0; i < count; i++) {
+        semaphores[i] = const_cast<Fence*>(pFences)[i].Get()._fence;    //TODO: Remove EVIL const_cast!
+    }
+
+    VkSemaphoreWaitInfo waitInfo = {}; 
+    waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO; 
+    waitInfo.pNext = nullptr; 
+    waitInfo.flags = (waitForAll) ? 0u : VK_SEMAPHORE_WAIT_ANY_BIT; 
+    waitInfo.semaphoreCount = semaphores.size();
+    waitInfo.pSemaphores = semaphores.data(); 
+    waitInfo.pValues = pValues; 
+
+    VkResult res = vkWaitSemaphores(m_Device, &waitInfo, timeout); 
+    if (res == VK_TIMEOUT) {
+        Utility::Log::Warning("Fence Timeout!\n"); 
+        return OnyxResult::ONYX_TIMEOUT; 
+    }
+    else if (res != VK_SUCCESS) {
+        //Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to Signal Fence <0x%08x> with value %d!\t%s\n", fence.Get()._fence, value, string_VkResult(res));
+        return OnyxResult::ONYX_FAILED;
+    }
+    return OnyxResult::ONYX_SUCCESS; 
 }
 
 
@@ -343,8 +440,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
 {
     Utility::Log::Debug("Creating Vulkan Instance...\n");
 
-    m_EnableDebugUtils = enableValidationLayers; 
-    
+    m_EnableDebugUtils = enableValidationLayers;
+
     std::vector<const char*> requestedInstanceLayers;
     std::vector<const char*> requestedInstanceExtensions;
 
@@ -468,7 +565,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
     createInfo.ppEnabledExtensionNames = instanceExtensions.data();
     createInfo.enabledLayerCount = instanceLayers.size();
     createInfo.ppEnabledLayerNames = instanceLayers.data();
-    createInfo.pApplicationInfo = &applicationInfo; 
+    createInfo.pApplicationInfo = &applicationInfo;
 
     //Create the VkInstance
     VkResult res = vkCreateInstance(&createInfo, nullptr, &m_Instance);
@@ -619,6 +716,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     vulkan1_2features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     vulkan1_2features.bufferDeviceAddress = VK_TRUE;
     vulkan1_2features.descriptorIndexing = VK_TRUE;
+    vulkan1_2features.timelineSemaphore = VK_TRUE; 
 
     VkPhysicalDeviceFeatures2 deviceFeatures = {};
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -712,7 +810,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
     }
     //TODO: We're being lazy and just selecting the first swapchain image format. 
     VkSurfaceFormatKHR format = formats[0];
-    m_SwapchainFormat = format.format; 
+    m_SwapchainFormat = format.format;
 
 
     uint32_t numPresentModes = 0;
@@ -738,9 +836,9 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
         return VK_PRESENT_MODE_FIFO_KHR;    //Fall back to FIFO. 
 
         }(presentModes);
-    
+
     uint32_t imageCount = capabilities.minImageCount + 1;
-    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) 
+    if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
     {
         imageCount = capabilities.maxImageCount;
     }
@@ -812,7 +910,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySwapchain()
     m_Swapchain = VK_NULL_HANDLE;
 
     //Destroy the image views too
-    for(VkImageView& view : m_SwapchainImageViews){
+    for (VkImageView& view : m_SwapchainImageViews) {
         vkDestroyImageView(m_Device, view, nullptr);
     }
     m_SwapchainImageViews.clear();
@@ -848,33 +946,33 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyVMAAllocator()
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDebugUtilsObjects()
 {
-    if(m_EnableDebugUtils){
-        Utility::Log::Debug("Creating Debug Utils Objects...\n"); 
+    if (m_EnableDebugUtils) {
+        Utility::Log::Debug("Creating Debug Utils Objects...\n");
 
         //Create the DebugUtilsMessengerEXT object
-        VkDebugUtilsMessengerCreateInfoEXT createInfo = {}; 
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT; 
-        createInfo.pNext = nullptr; 
-        createInfo.flags = 0; 
+        VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.pNext = nullptr;
+        createInfo.flags = 0;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT; // | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT; // | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-        createInfo.pfnUserCallback = DebugLogCallback; 
+        createInfo.pfnUserCallback = DebugLogCallback;
 
 
         VkResult res = GPUDevice_Vulkan::vkCreateDebugUtilsMessengerEXT(m_Instance, &createInfo, nullptr, &m_DebugUtilsMessenger);
-        if(res != VK_SUCCESS){
-            Utility::Log::Warning("Failed to create Debug Utils Objects!\n"); 
+        if (res != VK_SUCCESS) {
+            Utility::Log::Warning("Failed to create Debug Utils Objects!\n");
         }
     }
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDebugUtilsObjects()
 {
-    if(m_EnableDebugUtils){
+    if (m_EnableDebugUtils) {
         Utility::Log::Debug("Destroying Debug Utils Objects...\n");
 
-       GPUDevice_Vulkan::vkDestroyDebugUtilsMessengerEXT(m_Instance, &m_DebugUtilsMessenger, nullptr);
-       m_DebugUtilsMessenger = VK_NULL_HANDLE;
+        GPUDevice_Vulkan::vkDestroyDebugUtilsMessengerEXT(m_Instance, &m_DebugUtilsMessenger, nullptr);
+        m_DebugUtilsMessenger = VK_NULL_HANDLE;
     }
 }
 
@@ -909,9 +1007,9 @@ VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkDestroyDebugUtilsMessengerE
 }
 
 
-VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo){
-    auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_Instance, "vkSetDebugUtilsObjectNameEXT"); 
-    if(func != nullptr) {
+VkResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo) {
+    auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_Instance, "vkSetDebugUtilsObjectNameEXT");
+    if (func != nullptr) {
         return func(device, pNameInfo);
     }
     else {

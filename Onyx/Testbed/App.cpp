@@ -73,6 +73,15 @@ void App::Init() {
 
     }
 
+    //Fence Testing
+    {
+        Onyx::Graphics::Fence fence = {}; 
+        m_Device->CreateFence(0, &fence, "Debug Fence"); 
+        fence.Signal(m_Device, 100); 
+        fence.Wait(m_Device, 1000, 5000000000); 
+        m_Device->DestroyFence(fence); 
+    }
+
     m_IsInitialized = true;
 
 }

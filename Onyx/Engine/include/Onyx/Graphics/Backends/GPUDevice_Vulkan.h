@@ -3,7 +3,7 @@
 /*
 * @file GPUDevice_Vulkan.h
 * @brief Vulkan GPU backend
-* ------------------------------------------------ 
+* ------------------------------------------------
 * @author Ewan Burnett(EwanBurnettSK@Outlook.com)
 * @date 2025/07/29
 */
@@ -16,18 +16,24 @@ namespace Onyx {
         namespace Vulkan {
             class GPUDevice_Vulkan : public GPUDevice {
             public:
-                GPUDevice_Vulkan(); 
+                GPUDevice_Vulkan();
 
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
-                void CreateSwapchain(Window* pWindow) override; 
+                void CreateSwapchain(Window* pWindow) override;
 
-                OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override; 
-                void DestroyBuffer(Buffer& buffer) override; 
+                OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override;
+                void DestroyBuffer(Buffer& buffer) override;
 
-                OnyxResult CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture) override; 
-                void DestroyTexture(Texture& buffer) override; 
+                OnyxResult CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture) override;
+                void DestroyTexture(Texture& buffer) override;
+
+
+                OnyxResult CreateFence(const uint64_t initialValue, Fence* pFence, const char* name) override;
+                void DestroyFence(Fence& fence) override;
+                OnyxResult SignalFence(Fence& fence, const uint64_t value) override;
+                OnyxResult WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll) override;
 
             private:
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion);
@@ -41,12 +47,12 @@ namespace Onyx {
                 void CreateSurface(Window* pWindow);
                 void DestroySurface();
 
-                void DestroySwapchain(); 
+                void DestroySwapchain();
 
-                void CreateVMAAllocator(); 
+                void CreateVMAAllocator();
                 void DestroyVMAAllocator();
 
-                void CreateDebugUtilsObjects(); 
+                void CreateDebugUtilsObjects();
                 void DestroyDebugUtilsObjects();
 
             private:
@@ -55,7 +61,7 @@ namespace Onyx {
                 VkResult vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT* pDebugMessenger, const VkAllocationCallbacks* pAllocator);
 
 
-                VkResult vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo); 
+                VkResult vkSetDebugUtilsObjectNameEXT(VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo);
 
             private:
                 VkInstance m_Instance;
@@ -63,24 +69,24 @@ namespace Onyx {
                 VkDevice m_Device;
                 VkSurfaceKHR m_Surface;
 
-                VkSwapchainKHR m_Swapchain; 
-                VkFormat m_SwapchainFormat; 
+                VkSwapchainKHR m_Swapchain;
+                VkFormat m_SwapchainFormat;
                 VkExtent2D m_SwapchainExtent;
-                std::vector<VkImage> m_SwapchainImages; 
-                std::vector<VkImageView> m_SwapchainImageViews; 
+                std::vector<VkImage> m_SwapchainImages;
+                std::vector<VkImageView> m_SwapchainImageViews;
 
-                VkDebugUtilsMessengerEXT m_DebugUtilsMessenger; 
+                VkDebugUtilsMessengerEXT m_DebugUtilsMessenger;
 
 
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;
                 VkQueue m_Queue;
 
-                VmaAllocator m_VMAAllocator; 
+                VmaAllocator m_VMAAllocator;
 
 
                 //TODO: Settings 
-                bool m_EnableDebugUtils; 
+                bool m_EnableDebugUtils;
             };
         }
     }
