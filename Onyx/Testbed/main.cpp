@@ -9,12 +9,7 @@
 
 #include "App.h"
 
-
-#if _WIN32 || __linux__
-
-#include <GLFW/glfw3.h>
-
-#elif __ANDROID__
+#if __ANDROID__
 
 #include <jni.h>
 #include <android/log.h>
@@ -27,8 +22,13 @@
 
 extern "C" {
 #include <game-activity/native_app_glue/android_native_app_glue.c>
-    void android_main(android_app* pApp);
+void android_main(android_app* pApp);
 }
+
+
+#elif _WIN32 || __linux__
+
+#include <GLFW/glfw3.h>
 
 #endif
 

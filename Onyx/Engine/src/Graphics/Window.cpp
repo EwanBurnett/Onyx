@@ -1,10 +1,10 @@
 #include "../../include/Onyx/Graphics/Window.h"
 #include "../../include/Onyx/Utility/Logger.h"
 
-#if _WIN32 || __linux__
-#include <GLFW/glfw3.h>
-#elif __ANDROID__
+#if __ANDROID__
 #include <game-activity/native_app_glue/android_native_app_glue.h>
+#elif _WIN32 || __linux__
+#include <GLFW/glfw3.h>
 #endif
 
 Onyx::Graphics::Window::Window()
@@ -54,7 +54,8 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
 
 void Onyx::Graphics::Window::Destroy() {
 
-#if _WIN32 || __linux__
+#if __ANDROID__
+#elif _WIN32 || __linux__
     glfwDestroyWindow(static_cast<GLFWwindow*>(m_pHandle));
 #endif
 }

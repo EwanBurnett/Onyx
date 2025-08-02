@@ -38,20 +38,19 @@ void App::Init() {
         createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;// | VK_BUFFER_USAGE_TRANSFER_DST_BIT; 
         createInfo.flags = {}; 
 
-        //TODO: CreateBuffer(Buffer* pOutBuffer, const BufferCreateInfo& createInfo); ?
         Onyx::Graphics::Buffer buffer = {};
         m_Device->CreateBuffer(&createInfo, &buffer); 
 
 
         Onyx::Utility::Log::Debug("Sizeof(Buffer) = %d\n", sizeof(Onyx::Graphics::Buffer));
         //Check buffer values
-        Onyx::Utility::Log::Debug("Created buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
+        Onyx::Utility::Log::Debug("Created Buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
 
         m_Device->DestroyBuffer(buffer); 
-        Onyx::Utility::Log::Debug("Destroyed buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
+        Onyx::Utility::Log::Debug("Destroyed Buffer!\nName: %s\nSize: %d\nVkBuffer Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", buffer.name, buffer.size, buffer._buffer, buffer._alloc);
     }
     {
-        Onyx::Utility::Log::Debug("Sizeof(Texture) = %d\n", sizeof(Onyx::Graphics::Buffer));
+        Onyx::Utility::Log::Debug("Sizeof(Texture) = %d\n", sizeof(Onyx::Graphics::Texture));
         Onyx::Graphics::TextureCreateInfo createInfo = {}; 
         createInfo.name = "Debug Texture"; 
         createInfo.width = 1024; 
@@ -60,7 +59,7 @@ void App::Init() {
         createInfo.type = Onyx::Graphics::ETextureType::TEXTURE_2D; 
         createInfo.format = VK_FORMAT_R8G8B8A8_SRGB; 
         createInfo.mipLevels = 1; 
-        createInfo.samples = Onyx::Graphics::ESampleCount::SAMPLE_COUNT_1; 
+        createInfo.sampleCount = Onyx::Graphics::ESampleCount::SAMPLE_COUNT_1; 
         createInfo.tiling = VK_IMAGE_TILING_LINEAR; 
         createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT; 
 
@@ -89,11 +88,8 @@ void App::Shutdown() {
 }
 
 bool App::PollEvents() {
-#if _WIN32 || __linux__
-    glfwPollEvents();
-    return !glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_Window.GetHandle()));
 
-#elif __ANDROID__
+#if __ANDROID__
 
     bool done = false;
     while (!done) {
@@ -121,6 +117,10 @@ bool App::PollEvents() {
 
     android_app* pApp = reinterpret_cast<android_app*>(m_Context);
     return (!pApp->destroyRequested);
+#elif _WIN32 || __linux__
+    glfwPollEvents();
+    return !glfwWindowShouldClose(reinterpret_cast<GLFWwindow*>(m_Window.GetHandle()));
+
 #endif
 }
 

@@ -11,11 +11,11 @@
 #include <cstring>
 #include <vulkan/vk_enum_string_helper.h>
 
-#if _WIN32 || __linux__ 
-#include <GLFW/glfw3.h>
-#elif __ANDROID__
+#if __ANDROID__
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 #include <vulkan/vulkan_android.h>
+#elif _WIN32 || __linux__
+#include <GLFW/glfw3.h>
 #endif
 
 Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
@@ -666,9 +666,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDevice()
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSurface(Window* pWindow)
 {
     VkResult res = VK_SUCCESS;
-#if _WIN32 || __linux__
-    res = glfwCreateWindowSurface(m_Instance, reinterpret_cast<GLFWwindow*>(pWindow->GetHandle()), nullptr, &m_Surface);
-#elif __ANDROID__
+
+#if __ANDROID__
     VkAndroidSurfaceCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
     createInfo.pNext = nullptr;
@@ -676,6 +675,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSurface(Window* pWindow)
     createInfo.window = reinterpret_cast<android_app*>(pWindow->GetHandle())->window;
 
     res = vkCreateAndroidSurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface);
+#elif _WIN32 || __linux__
+    res = glfwCreateWindowSurface(m_Instance, reinterpret_cast<GLFWwindow*>(pWindow->GetHandle()), nullptr, &m_Surface);
 #endif
 
     if (res != VK_SUCCESS) {
