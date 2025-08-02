@@ -21,6 +21,8 @@ namespace Onyx {
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
+                void Present() override; 
+
                 void CreateSwapchain(Window* pWindow) override;
 
                 OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override;
@@ -49,6 +51,12 @@ namespace Onyx {
 
                 void DestroySwapchain();
 
+                void CreateVkFence(VkFence* pFence, const char* name); 
+                void DestroyVkFence(VkFence& fence); 
+
+                void CreateBinarySemaphore(VkSemaphore* semaphore, const char* name); 
+                void DestroyBinarySemaphore(VkSemaphore& semaphore); 
+
                 void CreateVMAAllocator();
                 void DestroyVMAAllocator();
 
@@ -74,9 +82,13 @@ namespace Onyx {
                 VkExtent2D m_SwapchainExtent;
                 std::vector<VkImage> m_SwapchainImages;
                 std::vector<VkImageView> m_SwapchainImageViews;
+                uint32_t m_SwapchainImageIndex; 
 
                 VkDebugUtilsMessengerEXT m_DebugUtilsMessenger;
 
+
+                VkFence m_fFrameReady; 
+                VkSemaphore m_BinarySemaphore; 
 
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;

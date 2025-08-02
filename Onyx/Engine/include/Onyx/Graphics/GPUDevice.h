@@ -18,6 +18,8 @@ namespace Onyx {
             virtual void Init(Window* pWindow) = 0;
             virtual void Shutdown() = 0;
 
+            virtual void Present(); 
+
             virtual void CreateSwapchain(Window* pWindow); 
 
             virtual OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer);
@@ -30,6 +32,7 @@ namespace Onyx {
             virtual void DestroyFence(Fence& fence); 
             virtual OnyxResult SignalFence(Fence& fence, const uint64_t value) ;
             virtual OnyxResult WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll = true) ; 
+
 
         };
     }

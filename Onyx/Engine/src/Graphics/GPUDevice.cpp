@@ -8,6 +8,10 @@ void Onyx::Graphics::GPUDevice::Shutdown() {
 
 }
 
+void Onyx::Graphics::GPUDevice::Present() {
+
+}
+
 void Onyx::Graphics::GPUDevice::CreateSwapchain(Window* pWindow) {
 
 }

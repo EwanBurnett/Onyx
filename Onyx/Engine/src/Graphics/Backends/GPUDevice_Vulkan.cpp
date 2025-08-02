@@ -9,12 +9,13 @@
 #include "../../../include/Onyx/Utility/Logger.h"
 #include "../../../include/Onyx/Version.h"
 #include <cstring>
-#include <vulkan/vk_enum_string_helper.h>
+
 
 #if __ANDROID__
 #include <game-activity/native_app_glue/android_native_app_glue.h>
 #include <vulkan/vulkan_android.h>
 #elif _WIN32 || __linux__
+#include <vulkan/vk_enum_string_helper.h>
 #include <GLFW/glfw3.h>
 #endif
 
@@ -29,6 +30,10 @@ Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
     m_Swapchain = VK_NULL_HANDLE;
     m_VMAAllocator = VK_NULL_HANDLE;
     m_DebugUtilsMessenger = VK_NULL_HANDLE;
+
+    m_SwapchainImageIndex = 0u;
+    m_fFrameReady = VK_NULL_HANDLE;
+    m_BinarySemaphore = VK_NULL_HANDLE;
 
     m_EnableDebugUtils = false;
 
@@ -47,7 +52,11 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
         const uint32_t applicationVersion = VK_MAKE_API_VERSION(0, 0, 0, 1);
 
         CreateInstance(enableValidationLayers, enableDebugUtils, applicationName, applicationVersion);
+
+
     }
+
+    CreateDebugUtilsObjects();
 
     //Select a Physical Device
     VkPhysicalDeviceFeatures requiredFeatures = {}; //TODO: This should be able to be specified from the application...
@@ -60,11 +69,55 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     //TODO: Optional extensions!
     deviceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
     CreateDevice(deviceExtensions, requiredFeatures);
+
+    //Set the Instance name. 
+    if (m_EnableDebugUtils) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.objectHandle = (uint64_t)m_Instance;
+        nameInfo.objectType = VK_OBJECT_TYPE_INSTANCE;
+        nameInfo.pObjectName = "Instance";
+
+        GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+    }
+
+    //Set the Physical Device name. 
+    if (m_EnableDebugUtils) {
+        VkPhysicalDeviceProperties deviceProperties = {}; 
+        vkGetPhysicalDeviceProperties(m_PhysicalDevice, &deviceProperties); 
+
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.objectHandle = (uint64_t)m_PhysicalDevice;
+        nameInfo.objectType = VK_OBJECT_TYPE_PHYSICAL_DEVICE;
+        nameInfo.pObjectName = deviceProperties.deviceName;
+
+        GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+    }
+
+    //TODO: Queue Abstraction
+    {
+        vkGetDeviceQueue(m_Device, m_QueueFamilyIndex, 0, &m_Queue);
+        //Set the instance name. 
+        if (m_EnableDebugUtils) {
+            VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.pNext = nullptr;
+            nameInfo.objectHandle = (uint64_t)m_Queue;
+            nameInfo.objectType = VK_OBJECT_TYPE_QUEUE;
+            nameInfo.pObjectName = "Main Queue";
+
+            GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        }
+    }
 
     CreateSurface(pWindow);
 
@@ -72,7 +125,21 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     CreateVMAAllocator();
 
-    CreateDebugUtilsObjects();
+
+    CreateBinarySemaphore(&m_BinarySemaphore, "Binary Semaphore");
+    CreateVkFence(&m_fFrameReady, "Render Fence");
+    {
+        if (m_EnableDebugUtils) {
+            VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+            nameInfo.pNext = nullptr;
+            nameInfo.objectHandle = (uint64_t)m_fFrameReady;
+            nameInfo.objectType = VK_OBJECT_TYPE_FENCE;
+            nameInfo.pObjectName = "f_FrameReady";
+
+            GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        }
+    }
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
@@ -80,14 +147,51 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
     vkDeviceWaitIdle(m_Device);
 
-    DestroyDebugUtilsObjects();
+    DestroyBinarySemaphore(m_BinarySemaphore);
+    DestroyVkFence(m_fFrameReady);
+
     DestroyVMAAllocator();
     DestroySwapchain();
     DestroySurface();
     DestroyDevice();
+    DestroyDebugUtilsObjects();
     DestroyInstance();
 }
 
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
+
+    /*
+    VkSemaphoreSignalInfo signalInfo = {};
+    signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
+    signalInfo.pNext = nullptr;
+    signalInfo.semaphore = m_BinarySemaphore;
+    signalInfo.value = 0u;
+
+    vkSignalSemaphore(m_Device, &signalInfo);
+    */
+    /*
+    */
+    vkResetFences(m_Device, 1, &m_fFrameReady);
+    vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fFrameReady, &m_SwapchainImageIndex);
+    vkWaitForFences(m_Device, 1, &m_fFrameReady, true, UINT64_MAX);
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.pNext = nullptr;
+    presentInfo.waitSemaphoreCount = 0;
+    presentInfo.pWaitSemaphores = VK_NULL_HANDLE;// &m_BinarySemaphore;
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &m_Swapchain;
+    presentInfo.pImageIndices = &m_SwapchainImageIndex;
+    presentInfo.pResults = nullptr;
+
+    VkResult res = vkQueuePresentKHR(m_Queue, &presentInfo);
+    if (res != VK_SUCCESS) {
+        Utility::Log::Warning("Failed to present!\n");
+    }
+
+
+}
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) {
 
@@ -136,7 +240,7 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const Bu
 
             VkResult res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
             if (res != VK_SUCCESS) {
-                Utility::Log::Warning("Unable to Register Buffer Name %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
+                //Utility::Log::Warning("Unable to Register Buffer Name %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
             }
         }
 
@@ -236,10 +340,9 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
         allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
         allocInfo.flags = 0u;
 
-
         VkResult res = vmaCreateImage(m_VMAAllocator, &createInfo, &allocInfo, &pTexture->_image, &pTexture->_alloc, nullptr);
         if (res != VK_SUCCESS) {
-            Utility::Log::Warning("Failed to create Texture %s!\n%s\n", pCreateInfo->name, string_VkResult(res));
+            Utility::Log::Warning("Failed to create Texture %s!\n%d\n", pCreateInfo->name, res); //string_VkResult(res)
             return OnyxResult::ONYX_FAILED;//TODO: Failure reason! 
         }
 
@@ -284,7 +387,8 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
     */
 
     //Register Debug Names
-    if (m_EnableDebugUtils)
+
+    if (m_EnableDebugUtils && pCreateInfo->name)
     {
         VkDebugUtilsObjectNameInfoEXT nameInfo = {};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
@@ -293,27 +397,27 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const T
         nameInfo.objectHandle = (uint64_t)pTexture->_image;
         nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
 
-        VkResult res = VK_SUCCESS;
-        res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        /*
+        VkResult res = GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);  //BUG: This line crashes on android...
         if (res != VK_SUCCESS) {
             Utility::Log::Warning("Unable to Register Image Name %s!\n", pCreateInfo->name);
         }
+         */
 
-        /*
-        nameInfo.objectHandle = (uint64_t)pTexture->_view;
-        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+         /*
+         nameInfo.objectHandle = (uint64_t)pTexture->_view;
+         nameInfo.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
 
-        res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
-        */
+         res = vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
 
-        if (res != VK_SUCCESS) {
-            Utility::Log::Warning("Unable to Register Image View Name %s!\n", pCreateInfo->name);
-        }
 
-        //vmaSetAllocationName(m_VMAAllocator, pTexture->_alloc, pCreateInfo->name); 
+         if (res != VK_SUCCESS) {
+             Utility::Log::Warning("Unable to Register Image View Name %s!\n", pCreateInfo->name);
+         }
+         */
+         //vmaSetAllocationName(m_VMAAllocator, pTexture->_alloc, pCreateInfo->name); 
 
     }
-
 
     pTexture->name = pCreateInfo->name;
     pTexture->width = pCreateInfo->width;
@@ -343,7 +447,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyTexture(Texture& texture) 
     //texture._view = VK_NULL_HANDLE;
 }
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateFence(const uint64_t initialValue, Fence* pFence, const char* name) 
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateFence(const uint64_t initialValue, Fence* pFence, const char* name)
 {
     {
         VkSemaphoreTypeCreateInfo timelineCreateInfo = {};
@@ -359,7 +463,7 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateFence(const uin
 
         VkResult res = vkCreateSemaphore(m_Device, &createInfo, nullptr, &pFence->Get()._fence);
         if (res != VK_SUCCESS) {
-            Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Fence Object <0x%08x>!\t%s\n", pFence, string_VkResult(res));
+            //Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to create Fence Object <0x%08x>!\t%s\n", pFence, string_VkResult(res));
             return OnyxResult::ONYX_FAILED;
         }
     }
@@ -374,8 +478,7 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateFence(const uin
         nameInfo.objectHandle = (uint64_t)pFence->Get()._fence;
         nameInfo.objectType = VK_OBJECT_TYPE_SEMAPHORE;
 
-        VkResult res = VK_SUCCESS;
-        res = GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+        VkResult res = GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
         if (res != VK_SUCCESS) {
             Utility::Log::Warning("Unable to Register Fence Name %s!\n", name);
         }
@@ -390,49 +493,79 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyFence(Fence& fence)
     vkDestroySemaphore(m_Device, fence.Get()._fence, nullptr);
 }
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::SignalFence(Fence& fence, const uint64_t value) 
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::SignalFence(Fence& fence, const uint64_t value)
 {
-    VkSemaphoreSignalInfo signalInfo = {}; 
-    signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO; 
-    signalInfo.pNext = nullptr; 
-    signalInfo.semaphore = fence.Get()._fence; 
-    signalInfo.value = value; 
+    VkSemaphoreSignalInfo signalInfo = {};
+    signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
+    signalInfo.pNext = nullptr;
+    signalInfo.semaphore = fence.Get()._fence;
+    signalInfo.value = value;
 
-    VkResult res = vkSignalSemaphore(m_Device, &signalInfo); 
+#if __ANDROID__
+    //Manually load and call the function on android...
+    auto signal = [](VkInstance instance, VkDevice device, VkSemaphoreSignalInfo* info) {
+        auto func = (PFN_vkSignalSemaphore)vkGetInstanceProcAddr(instance, "vkSignalSemaphore");
+        if (func) {
+            return func(device, info);
+        }
+        else {
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+        };
+    VkResult res = signal(m_Instance, m_Device, &signalInfo);
+#else
+    VkResult res = vkSignalSemaphore(m_Device, &signalInfo);
+#endif
     if (res != VK_SUCCESS) {
-        Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to Signal Fence <0x%08x> with value %d!\t%s\n", fence.Get()._fence, value, string_VkResult(res)); 
-        return OnyxResult::ONYX_FAILED; 
+        //Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to Signal Fence <0x%08x> with value %d!\t%s\n", fence.Get()._fence, value, string_VkResult(res));
+        return OnyxResult::ONYX_FAILED;
     }
 
-    return OnyxResult::ONYX_SUCCESS; 
+    return OnyxResult::ONYX_SUCCESS;
 }
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t * pValues, const uint64_t timeout, const bool waitForAll)
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll)
 {
     //Extract the list of Timeline semaphores to wait on. 
-    std::vector<VkSemaphore> semaphores(count); 
+    std::vector<VkSemaphore> semaphores(count);
     for (int i = 0; i < count; i++) {
         semaphores[i] = const_cast<Fence*>(pFences)[i].Get()._fence;    //TODO: Remove EVIL const_cast!
     }
 
-    VkSemaphoreWaitInfo waitInfo = {}; 
-    waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO; 
-    waitInfo.pNext = nullptr; 
-    waitInfo.flags = (waitForAll) ? 0u : VK_SEMAPHORE_WAIT_ANY_BIT; 
+    VkSemaphoreWaitInfo waitInfo = {};
+    waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+    waitInfo.pNext = nullptr;
+    waitInfo.flags = (waitForAll) ? 0u : VK_SEMAPHORE_WAIT_ANY_BIT;
     waitInfo.semaphoreCount = semaphores.size();
-    waitInfo.pSemaphores = semaphores.data(); 
-    waitInfo.pValues = pValues; 
+    waitInfo.pSemaphores = semaphores.data();
+    waitInfo.pValues = pValues;
 
-    VkResult res = vkWaitSemaphores(m_Device, &waitInfo, timeout); 
+
+#if __ANDROID__
+    auto waitSemaphores = [](VkInstance instance, VkDevice device, VkSemaphoreWaitInfo* pWaitInfo, uint64_t timeout) {
+        auto func = (PFN_vkWaitSemaphores)vkGetInstanceProcAddr(instance, "vkWaitSemaphores");
+        if (func) {
+            return func(device, pWaitInfo, timeout);
+        }
+        else {
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        }
+        };
+
+    VkResult res = waitSemaphores(m_Instance, m_Device, &waitInfo, timeout);
+#else
+    VkResult res = vkWaitSemaphores(m_Device, &waitInfo, timeout);
+#endif
+
     if (res == VK_TIMEOUT) {
-        Utility::Log::Warning("Fence Timeout!\n"); 
-        return OnyxResult::ONYX_TIMEOUT; 
+        Utility::Log::Warning("Fence Timeout!\n");
+        return OnyxResult::ONYX_TIMEOUT;
     }
     else if (res != VK_SUCCESS) {
         //Utility::Log::Error(__FILE__, __LINE__, __PRETTY_FUNCTION__, "Failed to Signal Fence <0x%08x> with value %d!\t%s\n", fence.Get()._fence, value, string_VkResult(res));
         return OnyxResult::ONYX_FAILED;
     }
-    return OnyxResult::ONYX_SUCCESS; 
+    return OnyxResult::ONYX_SUCCESS;
 }
 
 
@@ -576,6 +709,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
 
     Utility::Log::Debug("Vulkan Instance Created! -> <0x%x>\n", m_Instance);
 
+
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyInstance()
@@ -622,7 +756,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::SelectPhysicalDevice(const VkPhys
         VkPhysicalDeviceProperties deviceProperties = {};
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
-        Utility::Log::Debug("Found Compatible Device %s!\n", deviceProperties.deviceName);
+
+        Utility::Log::Debug("Found Compatible Device %s! (API Version %d.%d.%d)\n", deviceProperties.deviceName, VK_API_VERSION_MAJOR(deviceProperties.apiVersion), VK_API_VERSION_MINOR(deviceProperties.apiVersion), VK_API_VERSION_PATCH(deviceProperties.apiVersion));
 
         if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
             m_PhysicalDevice = device;
@@ -716,7 +851,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     vulkan1_2features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     vulkan1_2features.bufferDeviceAddress = VK_TRUE;
     vulkan1_2features.descriptorIndexing = VK_TRUE;
-    vulkan1_2features.timelineSemaphore = VK_TRUE; 
+    vulkan1_2features.timelineSemaphore = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures = {};
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -750,8 +885,17 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device);
     Utility::Log::Debug("Vulkan Device Created! -> <0x%x>\n", m_Device);
 
-    vkGetDeviceQueue(m_Device, m_QueueFamilyIndex, 0, &m_Queue);
+    //Set the instance name. 
+    if (m_EnableDebugUtils) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.objectHandle = (uint64_t)m_Device;
+        nameInfo.objectType = VK_OBJECT_TYPE_DEVICE;
+        nameInfo.pObjectName = "Main Device";
 
+        GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+    }
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyDevice()
@@ -820,11 +964,14 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
         vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &numPresentModes, presentModes.data());
     }
 
-    VkPresentModeKHR presentMode = [](std::vector<VkPresentModeKHR> presentModes) {
+    VkPresentModeKHR presentMode = [](std::vector<VkPresentModeKHR>& presentModes) {
 
+        VkPresentModeKHR selectedMode = VK_PRESENT_MODE_IMMEDIATE_KHR; 
+        //TODO: Revisit Present Mode Selection...
+        /*
         for (const auto& mode : presentModes) {
             if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                return mode;
+                selectedMode = mode;
             }
             else if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
                 return mode;
@@ -833,7 +980,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
                 return mode;
             }
         }
-        return VK_PRESENT_MODE_FIFO_KHR;    //Fall back to FIFO. 
+        */
+        return selectedMode;    //Fall back to FIFO. 
 
         }(presentModes);
 
@@ -914,6 +1062,47 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySwapchain()
         vkDestroyImageView(m_Device, view, nullptr);
     }
     m_SwapchainImageViews.clear();
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVkFence(VkFence* pFence, const char* name)
+{
+    VkFenceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0u;// VK_FENCE_CREATE_SIGNALED_BIT;
+
+    vkCreateFence(m_Device, &createInfo, nullptr, pFence);
+
+
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyVkFence(VkFence& fence)
+{
+    vkDestroyFence(m_Device, fence, nullptr);
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBinarySemaphore(VkSemaphore* pSemaphore, const char* name)
+{
+    VkSemaphoreTypeCreateInfo binaryInfo = {};
+    binaryInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+    binaryInfo.pNext = nullptr;
+    binaryInfo.semaphoreType = VK_SEMAPHORE_TYPE_BINARY;
+    binaryInfo.initialValue = 0u;
+
+    VkSemaphoreCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    createInfo.pNext = &binaryInfo;
+    createInfo.flags = 0u;
+
+    VkResult res = vkCreateSemaphore(m_Device, &createInfo, nullptr, pSemaphore);
+    if (res != VK_SUCCESS) {
+        Utility::Log::Warning("Failed to create Semaphore!\n");
+    }
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBinarySemaphore(VkSemaphore& semaphore)
+{
+    vkDestroySemaphore(m_Device, semaphore, nullptr);
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVMAAllocator()

@@ -34,7 +34,7 @@ if(NOT Vulkan_FOUND)
     message(WARNING "Unable to find Vulkan SDK!")
     set(ONYX_ENABLE_VULKAN 0)
 else()
-    message(STATUS "Enabling Vulkan SDK.")
+    message(STATUS "Enabling Vulkan SDK from ${Vulkan_SOURCE_DIR}")
     set(ONYX_ENABLE_VULKAN 1)
 
 

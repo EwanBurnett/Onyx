@@ -63,7 +63,10 @@ void App::Init() {
         createInfo.tiling = VK_IMAGE_TILING_LINEAR; 
         createInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT; 
 
-        printf("hi!\n");
+
+        //TODO: This is causing Android to crash, for some reason...
+
+        Onyx::Utility::Log::Debug("1");
         Onyx::Graphics::Texture texture = {}; 
         m_Device->CreateTexture(&createInfo, &texture);
         Onyx::Utility::Log::Debug("Created Texture!\nName: %s\nWidth:%d\nHeight: %d\nDepth: %d\nVkImage Handle: <0x%08x>\nVmaAllocation Handle: <0x%08x>\n", texture.name, texture.width, texture.height, texture.depth, texture._image, texture._alloc);
@@ -76,11 +79,16 @@ void App::Init() {
     //Fence Testing
     {
         Onyx::Graphics::Fence fence = {}; 
-        m_Device->CreateFence(0, &fence, "Debug Fence"); 
-        fence.Signal(m_Device, 100); 
-        fence.Wait(m_Device, 1000, 5000000000); 
-        m_Device->DestroyFence(fence); 
-    }
+
+
+        m_Device->CreateFence(0, &fence, "Debug Fence");
+
+        fence.Signal(m_Device, 100);
+        Onyx::Utility::Log::Debug("Waiting...\n");
+        fence.Wait(m_Device, 500, 5000000000);
+        m_Device->DestroyFence(fence);
+        Onyx::Utility::Log::Debug("Finished Waiting!\n");
+         }
 
     m_IsInitialized = true;
 
@@ -135,4 +143,7 @@ bool App::PollEvents() {
 
 void App::Update() {
     //Onyx::Utility::Log::Debug("Update!\n");
+    if(m_IsInitialized) {
+        m_Device->Present();
+    }
 }
