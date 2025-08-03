@@ -18,7 +18,7 @@ namespace Onyx {
             virtual void Init(Window* pWindow) = 0;
             virtual void Shutdown() = 0;
 
-            virtual void Present(); 
+            virtual OnyxResult Present(); 
 
             virtual void CreateSwapchain(Window* pWindow); 
 

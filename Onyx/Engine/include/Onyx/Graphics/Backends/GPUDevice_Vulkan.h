@@ -21,7 +21,7 @@ namespace Onyx {
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
-                void Present() override; 
+                OnyxResult Present() override; 
 
                 void CreateSwapchain(Window* pWindow) override;
 
@@ -96,6 +96,9 @@ namespace Onyx {
 
                 VmaAllocator m_VMAAllocator;
 
+                //TODO: Command Buffer Abstraction + Frames in Flight
+                VkCommandPool m_CommandPool; 
+                VkCommandBuffer m_CommandBuffer; 
 
                 //TODO: Settings 
                 bool m_EnableDebugUtils;

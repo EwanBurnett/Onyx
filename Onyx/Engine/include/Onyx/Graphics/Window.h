@@ -15,7 +15,10 @@ namespace Onyx {
 
             void* GetHandle();
 
+            void SetWidth(const uint32_t width); 
             uint32_t GetWidth() const; 
+
+            void SetHeight(const uint32_t height); 
             uint32_t GetHeight() const; 
         private:
             void* m_pHandle;

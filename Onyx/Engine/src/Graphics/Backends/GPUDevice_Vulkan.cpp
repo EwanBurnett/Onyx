@@ -90,8 +90,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     //Set the Physical Device name. 
     if (m_EnableDebugUtils) {
-        VkPhysicalDeviceProperties deviceProperties = {}; 
-        vkGetPhysicalDeviceProperties(m_PhysicalDevice, &deviceProperties); 
+        VkPhysicalDeviceProperties deviceProperties = {};
+        vkGetPhysicalDeviceProperties(m_PhysicalDevice, &deviceProperties);
 
         VkDebugUtilsObjectNameInfoEXT nameInfo = {};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
@@ -140,6 +140,26 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
             GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
         }
     }
+
+    //TODO: Command Buffer Wrapper
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+        commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        commandPoolCreateInfo.pNext = nullptr;
+        commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        commandPoolCreateInfo.queueFamilyIndex = m_QueueFamilyIndex;
+
+        vkCreateCommandPool(m_Device, &commandPoolCreateInfo, nullptr, &m_CommandPool);
+
+        VkCommandBufferAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.pNext = nullptr;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        allocInfo.commandPool = m_CommandPool;
+
+        vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer);
+    }
 }
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
@@ -158,7 +178,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
     DestroyInstance();
 }
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
 
     /*
     VkSemaphoreSignalInfo signalInfo = {};
@@ -175,22 +195,118 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
     vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fFrameReady, &m_SwapchainImageIndex);
     vkWaitForFences(m_Device, 1, &m_fFrameReady, true, UINT64_MAX);
 
+    //TODO: Remove this! This is just to test Presentation... 
+    {
+        VkCommandBuffer cmd = m_CommandBuffer;
+        vkResetCommandBuffer(cmd, 0u);
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.pNext = nullptr;
+        beginInfo.pInheritanceInfo = nullptr;
+        beginInfo.flags = 0u;
+
+        vkBeginCommandBuffer(cmd, &beginInfo);
+        {
+            {
+                VkImageMemoryBarrier present_src_to_rt = {};
+                present_src_to_rt.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                present_src_to_rt.pNext = nullptr;
+                present_src_to_rt.image = m_SwapchainImages[m_SwapchainImageIndex];
+                present_src_to_rt.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+                present_src_to_rt.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+                present_src_to_rt.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                present_src_to_rt.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                present_src_to_rt.dstQueueFamilyIndex = m_QueueFamilyIndex;
+                present_src_to_rt.srcQueueFamilyIndex = m_QueueFamilyIndex;
+                present_src_to_rt.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                present_src_to_rt.subresourceRange.baseArrayLayer = 0;
+                present_src_to_rt.subresourceRange.baseMipLevel = 0;
+                present_src_to_rt.subresourceRange.layerCount = 1;
+                present_src_to_rt.subresourceRange.levelCount = 1;
+
+                VkImageMemoryBarrier imageBarriers[] = {
+                    present_src_to_rt,
+                };
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0u, 0u, nullptr, 0u, nullptr, 1u, imageBarriers);
+            }
+            VkClearColorValue colour = { 1.0f, 0.0f, 0.0f, 1.0f };
+
+            VkImageSubresourceRange range = {};
+            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            range.baseArrayLayer = 0;
+            range.baseMipLevel = 0;
+            range.levelCount = 1;
+            range.layerCount = 1;
+
+            vkCmdClearColorImage(cmd, m_SwapchainImages[m_SwapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &colour, 1, &range);
+
+            {
+                VkImageMemoryBarrier rt_to_present_src = {};
+                rt_to_present_src.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+                rt_to_present_src.pNext = nullptr;
+                rt_to_present_src.image = m_SwapchainImages[m_SwapchainImageIndex];
+                rt_to_present_src.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+                rt_to_present_src.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+                rt_to_present_src.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                rt_to_present_src.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                rt_to_present_src.dstQueueFamilyIndex = m_QueueFamilyIndex;
+                rt_to_present_src.srcQueueFamilyIndex = m_QueueFamilyIndex;
+                rt_to_present_src.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                rt_to_present_src.subresourceRange.baseArrayLayer = 0;
+                rt_to_present_src.subresourceRange.baseMipLevel = 0;
+                rt_to_present_src.subresourceRange.layerCount = 1;
+                rt_to_present_src.subresourceRange.levelCount = 1;
+
+                VkImageMemoryBarrier imageBarriers[] = {
+                    rt_to_present_src,
+                };
+                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0u, 0u, nullptr, 0u, nullptr, 1u, imageBarriers);
+            }
+        }
+        vkEndCommandBuffer(cmd);
+
+        VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = nullptr;
+        submitInfo.commandBufferCount = 1u;
+        submitInfo.pCommandBuffers = &cmd;
+        submitInfo.waitSemaphoreCount = 0;
+        submitInfo.pWaitSemaphores = nullptr;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &m_BinarySemaphore;
+        submitInfo.pWaitDstStageMask = &stageMask;
+
+        vkQueueSubmit(m_Queue, 1, &submitInfo, nullptr);
+    }
+
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
-    presentInfo.waitSemaphoreCount = 0;
-    presentInfo.pWaitSemaphores = VK_NULL_HANDLE;// &m_BinarySemaphore;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &m_BinarySemaphore;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_Swapchain;
     presentInfo.pImageIndices = &m_SwapchainImageIndex;
     presentInfo.pResults = nullptr;
 
     VkResult res = vkQueuePresentKHR(m_Queue, &presentInfo);
-    if (res != VK_SUCCESS) {
+
+    //Out of date swapchain; Recreate!
+    if (res == VK_ERROR_OUT_OF_DATE_KHR) {
+        Utility::Log::Warning("Swapchain is out-of-date!\n");
+
+        //Make resizing the application's responsibility 
+        return OnyxResult::ONYX_OUT_OF_DATE;
+    }
+
+    else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
         Utility::Log::Warning("Failed to present!\n");
     }
 
-
+    return OnyxResult::ONYX_SUCCESS;
 }
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) {
@@ -966,7 +1082,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
 
     VkPresentModeKHR presentMode = [](std::vector<VkPresentModeKHR>& presentModes) {
 
-        VkPresentModeKHR selectedMode = VK_PRESENT_MODE_IMMEDIATE_KHR; 
+        VkPresentModeKHR selectedMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         //TODO: Revisit Present Mode Selection...
         /*
         for (const auto& mode : presentModes) {
@@ -1008,7 +1124,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
     swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     swapchainCreateInfo.imageFormat = format.format;
     swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //| VK_IMAGE_USAGE_STORAGE_BIT;// VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; //| VK_IMAGE_USAGE_STORAGE_BIT;// VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     swapchainCreateInfo.minImageCount = imageCount;
     swapchainCreateInfo.imageColorSpace = format.colorSpace;
     swapchainCreateInfo.imageArrayLayers = 1;

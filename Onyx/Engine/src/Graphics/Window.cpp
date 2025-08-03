@@ -7,6 +7,22 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#if __ANDROID__
+#elif _WIN32 || __linux__
+void OnResize_Callback(GLFWwindow* window, int width, int height) {
+    Onyx::Graphics::Window* pWindow = (Onyx::Graphics::Window*)glfwGetWindowUserPointer(window); 
+    if (pWindow) {
+        pWindow->SetWidth(width); 
+        pWindow->SetHeight(height); 
+    }
+    else {
+        Onyx::Utility::Log::Warning("Window Pointer is Invalid!\n"); 
+    }
+}
+
+
+#endif
+
 Onyx::Graphics::Window::Window()
 {
     m_pHandle = nullptr;
@@ -48,6 +64,10 @@ void Onyx::Graphics::Window::Create(const uint32_t width, const uint32_t height,
     }
     m_Height = height;
     m_Width = width;
+
+    auto h = static_cast<GLFWwindow*>(m_pHandle); 
+    glfwSetWindowUserPointer(h, this);
+    glfwSetWindowSizeCallback(h, OnResize_Callback);
 #endif
     Utility::Log::Message("Window Created!\nWidth: %d\nHeight: %d\nTitle: %s\n", m_Width, m_Height, title);
 }
@@ -64,9 +84,18 @@ void* Onyx::Graphics::Window::GetHandle() {
     return m_pHandle;
 }
 
+void Onyx::Graphics::Window::SetWidth(const uint32_t width)
+{
+    m_Width = width; 
+}
 
 uint32_t Onyx::Graphics::Window::GetWidth() const {
     return m_Width; 
+}
+
+void Onyx::Graphics::Window::SetHeight(const uint32_t height)
+{
+    m_Height = height; 
 }
 
 uint32_t Onyx::Graphics::Window::GetHeight() const {
