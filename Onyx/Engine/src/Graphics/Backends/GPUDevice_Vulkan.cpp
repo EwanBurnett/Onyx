@@ -180,113 +180,11 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
 
-    /*
-    VkSemaphoreSignalInfo signalInfo = {};
-    signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
-    signalInfo.pNext = nullptr;
-    signalInfo.semaphore = m_BinarySemaphore;
-    signalInfo.value = 0u;
-
-    vkSignalSemaphore(m_Device, &signalInfo);
-    */
-    /*
-    */
-    vkResetFences(m_Device, 1, &m_fFrameReady);
-    vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fFrameReady, &m_SwapchainImageIndex);
-    vkWaitForFences(m_Device, 1, &m_fFrameReady, true, UINT64_MAX);
-
-    //TODO: Remove this! This is just to test Presentation... 
-    {
-        VkCommandBuffer cmd = m_CommandBuffer;
-        vkResetCommandBuffer(cmd, 0u);
-
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.pNext = nullptr;
-        beginInfo.pInheritanceInfo = nullptr;
-        beginInfo.flags = 0u;
-
-        vkBeginCommandBuffer(cmd, &beginInfo);
-        {
-            {
-                VkImageMemoryBarrier present_src_to_rt = {};
-                present_src_to_rt.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-                present_src_to_rt.pNext = nullptr;
-                present_src_to_rt.image = m_SwapchainImages[m_SwapchainImageIndex];
-                present_src_to_rt.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-                present_src_to_rt.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-                present_src_to_rt.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                present_src_to_rt.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                present_src_to_rt.dstQueueFamilyIndex = m_QueueFamilyIndex;
-                present_src_to_rt.srcQueueFamilyIndex = m_QueueFamilyIndex;
-                present_src_to_rt.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                present_src_to_rt.subresourceRange.baseArrayLayer = 0;
-                present_src_to_rt.subresourceRange.baseMipLevel = 0;
-                present_src_to_rt.subresourceRange.layerCount = 1;
-                present_src_to_rt.subresourceRange.levelCount = 1;
-
-                VkImageMemoryBarrier imageBarriers[] = {
-                    present_src_to_rt,
-                };
-                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0u, 0u, nullptr, 0u, nullptr, 1u, imageBarriers);
-            }
-            VkClearColorValue colour = { 1.0f, 0.0f, 0.0f, 1.0f };
-
-            VkImageSubresourceRange range = {};
-            range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            range.baseArrayLayer = 0;
-            range.baseMipLevel = 0;
-            range.levelCount = 1;
-            range.layerCount = 1;
-
-            vkCmdClearColorImage(cmd, m_SwapchainImages[m_SwapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &colour, 1, &range);
-
-            {
-                VkImageMemoryBarrier rt_to_present_src = {};
-                rt_to_present_src.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-                rt_to_present_src.pNext = nullptr;
-                rt_to_present_src.image = m_SwapchainImages[m_SwapchainImageIndex];
-                rt_to_present_src.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-                rt_to_present_src.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-                rt_to_present_src.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                rt_to_present_src.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                rt_to_present_src.dstQueueFamilyIndex = m_QueueFamilyIndex;
-                rt_to_present_src.srcQueueFamilyIndex = m_QueueFamilyIndex;
-                rt_to_present_src.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                rt_to_present_src.subresourceRange.baseArrayLayer = 0;
-                rt_to_present_src.subresourceRange.baseMipLevel = 0;
-                rt_to_present_src.subresourceRange.layerCount = 1;
-                rt_to_present_src.subresourceRange.levelCount = 1;
-
-                VkImageMemoryBarrier imageBarriers[] = {
-                    rt_to_present_src,
-                };
-                vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0u, 0u, nullptr, 0u, nullptr, 1u, imageBarriers);
-            }
-        }
-        vkEndCommandBuffer(cmd);
-
-        VkPipelineStageFlags stageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-        VkSubmitInfo submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.pNext = nullptr;
-        submitInfo.commandBufferCount = 1u;
-        submitInfo.pCommandBuffers = &cmd;
-        submitInfo.waitSemaphoreCount = 0;
-        submitInfo.pWaitSemaphores = nullptr;
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &m_BinarySemaphore;
-        submitInfo.pWaitDstStageMask = &stageMask;
-
-        vkQueueSubmit(m_Queue, 1, &submitInfo, nullptr);
-    }
-
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &m_BinarySemaphore;
+    presentInfo.waitSemaphoreCount = 0;
+    presentInfo.pWaitSemaphores = nullptr;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_Swapchain;
     presentInfo.pImageIndices = &m_SwapchainImageIndex;
@@ -308,6 +206,70 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
 
     return OnyxResult::ONYX_SUCCESS;
 }
+
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos) {
+
+    std::vector<VkTimelineSemaphoreSubmitInfo> timelineInfos; 
+    timelineInfos.resize(submitCount); 
+
+    std::vector<VkSubmitInfo> submitInfos;
+    submitInfos.resize(submitCount); 
+    
+    std::vector<std::vector<VkSemaphore>> waitSemaphores; 
+    waitSemaphores.resize(submitCount);
+
+    std::vector<std::vector<VkSemaphore>> signalSemaphores; 
+    signalSemaphores.resize(submitCount); 
+
+    std::vector<std::vector<VkCommandBuffer>> commandBuffers; 
+    commandBuffers.resize(submitCount); 
+
+    for(uint32_t i = 0; i < submitCount; i++){
+
+        SubmitInfo& submitInfo = *ppSubmitInfos[i];
+
+        for(uint32_t j = 0; j < submitInfo.waitFenceCount; j++){
+            waitSemaphores[i].push_back(submitInfo.pWaitFences[j].Get()._fence); 
+        }
+
+        for(uint32_t j = 0; j < submitInfo.signalFenceCount; j++){
+            signalSemaphores[i].push_back(submitInfo.pSignalFences[j].Get()._fence); 
+        }
+
+        for(uint32_t j = 0; j < submitInfo.commandBufferCount; j++){
+            commandBuffers[i].push_back(submitInfo.pCommandBuffers[j]._commandBuffer); 
+        }
+
+
+        VkTimelineSemaphoreSubmitInfo timelineInfo = {}; 
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO; 
+        timelineInfo.pNext = nullptr; 
+        timelineInfo.waitSemaphoreValueCount = waitSemaphores[i].size();  
+        timelineInfo.pWaitSemaphoreValues = submitInfo.pWaitValues; 
+        timelineInfo.signalSemaphoreValueCount = signalSemaphores[i].size(); 
+        timelineInfo.pSignalSemaphoreValues = submitInfo.pSignalValues;
+        timelineInfos[i] = timelineInfo; 
+
+        VkSubmitInfo info = {}; 
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO; 
+        info.pNext = &timelineInfo; 
+        info.waitSemaphoreCount = submitInfo.waitFenceCount; 
+        info.pWaitSemaphores = waitSemaphores[i].data(); 
+        info.signalSemaphoreCount = submitInfo.signalFenceCount;
+        info.pSignalSemaphores = signalSemaphores[i].data(); 
+        info.commandBufferCount = submitInfo.commandBufferCount; 
+        info.pCommandBuffers = commandBuffers[i].data(); 
+        info.pWaitDstStageMask = submitInfo.pWaitDstStageMask; 
+
+        submitInfos[i] = info; 
+    }
+
+    printf("Semaphore %x\n", submitInfos[0].pWaitSemaphores[0]);
+
+    VkResult res = vkQueueSubmit(pQueue->_queue, submitInfos.size(), submitInfos.data(), VK_NULL_HANDLE);
+}
+
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) {
 
@@ -683,6 +645,39 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const F
     }
     return OnyxResult::ONYX_SUCCESS;
 }
+
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue* pQueue, EQueueType type){
+
+    //TODO: Store these in a member variable based on queue types???
+    uint32_t queueIndex = 0u; 
+    uint32_t queueFamilyIndex = 0u; 
+
+    VkDeviceQueueInfo2 queueInfo = {}; 
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2; 
+    queueInfo.pNext = nullptr;
+    queueInfo.flags = 0u; 
+    queueInfo.queueIndex = queueIndex; 
+    queueInfo.queueFamilyIndex = queueFamilyIndex; 
+
+    vkGetDeviceQueue2(m_Device, &queueInfo, &pQueue->_queue);
+
+    //Create the Command Pool for this queue. 
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.pNext = nullptr;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndex;
+
+    vkCreateCommandPool(m_Device, &commandPoolCreateInfo, nullptr, &pQueue->_commandPool);
+
+    return OnyxResult::ONYX_SUCCESS; 
+} 
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyQueue(GPUQueue& queue){
+
+}
+
 
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion)

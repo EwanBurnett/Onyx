@@ -23,6 +23,8 @@ namespace Onyx {
 
                 OnyxResult Present() override; 
 
+                void Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos) override;
+
                 void CreateSwapchain(Window* pWindow) override;
 
                 OnyxResult CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) override;
@@ -36,6 +38,10 @@ namespace Onyx {
                 void DestroyFence(Fence& fence) override;
                 OnyxResult SignalFence(Fence& fence, const uint64_t value) override;
                 OnyxResult WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll) override;
+
+                OnyxResult CreateQueue(GPUQueue* pQueue, EQueueType type) override; 
+                void DestroyQueue(GPUQueue& queue) override;
+
 
             private:
                 void CreateInstance(const bool enableValidationLayers, const bool enableDebugUtils, const char* applicationName, const uint32_t applicationVersion);

@@ -15,6 +15,10 @@ Onyx::OnyxResult Onyx::Graphics::GPUDevice::Present() {
 void Onyx::Graphics::GPUDevice::CreateSwapchain(Window* pWindow) {
 
 }
+            
+void Onyx::Graphics::GPUDevice::Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos){
+
+}
 
 Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateBuffer(const BufferCreateInfo* pCreateInfo, Buffer* pBuffer) {
     return OnyxResult::ONYX_NOT_IMPLEMENTED;
@@ -51,3 +55,13 @@ Onyx::OnyxResult Onyx::Graphics::GPUDevice::WaitForFences(const Fence* const pFe
 {
     return OnyxResult::ONYX_NOT_IMPLEMENTED; 
 }
+
+Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateQueue(GPUQueue* pQueue, EQueueType type){
+
+}
+
+void Onyx::Graphics::GPUDevice::DestroyQueue(GPUQueue& queue){
+
+}
+
+

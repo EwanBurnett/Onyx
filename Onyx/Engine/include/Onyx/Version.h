@@ -16,7 +16,7 @@ namespace Onyx{
         constexpr uint8_t kIssue = 1;
 
         constexpr const char* kGitBranch = u8"dev/gpu-objects";
-        constexpr const char* kGitHash = u8"7c62809";
+        constexpr const char* kGitHash = u8"139c316";
     }
 }
 

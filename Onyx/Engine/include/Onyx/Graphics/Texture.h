@@ -33,10 +33,15 @@ namespace Onyx{
             
         };
 
+        //NOTE: We only need to publicly define common formats for now...
+        //TODO: Additional formats!
         enum class EFormat{
             FORMAT_UNDEFINED, 
             FORMAT_R8_UNORM,    //VK_FORMAT_R8_UNORM / DXGI_FORMAT_R8_UNORM
             FORMAT_R8_SNORM, 
+            FORMAT_D32_FLOAT, 
+            FORMAT_R8G8B8A8_UNORM, 
+
             //TODO: Format.h 
 
             EFormat_MAX

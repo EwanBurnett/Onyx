@@ -79,11 +79,41 @@ void App::Init() {
 
         m_Device->CreateFence(0, &fence, "Debug Fence");
 
-        fence.Signal(m_Device, 100);
+        fence.Signal(m_Device, 10);
         Onyx::Utility::Log::Debug("Waiting...\n");
-        fence.Wait(m_Device, 500, 5000);
-        m_Device->DestroyFence(fence);
+        fence.Wait(m_Device, 100, 5000);
         Onyx::Utility::Log::Debug("Finished Waiting!\n");
+
+        Onyx::Graphics::GPUQueue queue = {};
+        m_Device->CreateQueue(&queue, Onyx::Graphics::EQueueType::QUEUE_TYPE_GRAPHICS); 
+
+        
+        Onyx::Graphics::SubmitInfo info = {}; 
+        info.commandBufferCount = 0; 
+        info.pCommandBuffers = nullptr; 
+        info.waitFenceCount = 1; 
+        uint64_t waitValues = 10; 
+        info.pWaitValues = &waitValues; 
+        info.pWaitFences = &fence; 
+        VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; 
+        info.pWaitDstStageMask = &waitStages; 
+        info.signalFenceCount = 1; 
+        info.pSignalFences = &fence; 
+        uint64_t signalValues = 100;
+        info.pSignalValues = &signalValues; 
+
+        Onyx::Graphics::SubmitInfo* infos[] = {
+            &info
+        };
+        queue.Submit(m_Device, 1, infos); 
+
+        fence.Wait(m_Device, 100); 
+            
+
+        Onyx::Utility::Log::Debug("Finished Work!\n");
+
+        m_Device->DestroyQueue(queue); 
+        m_Device->DestroyFence(fence);
     }
 
     m_IsInitialized = true;
@@ -140,6 +170,7 @@ bool App::PollEvents() {
 void App::Update() {
     //Onyx::Utility::Log::Debug("Update!\n");
     if (m_IsInitialized) {
+        /*
         Onyx::OnyxResult res = m_Device->Present();
         if (res == Onyx::OnyxResult::ONYX_OUT_OF_DATE) {
             while (m_Window.GetWidth() == 0 || m_Window.GetHeight() == 0) {
@@ -148,5 +179,6 @@ void App::Update() {
             }
             m_Device->CreateSwapchain(&m_Window); 
         }
+        */
     }
 }

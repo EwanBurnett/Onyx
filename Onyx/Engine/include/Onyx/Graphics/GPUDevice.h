@@ -8,6 +8,7 @@
 #include "Buffer.h"
 #include "Texture.h"
 #include "Fence.h"
+#include "GPUQueue.h"
 
 namespace Onyx {
     namespace Graphics {
@@ -19,6 +20,9 @@ namespace Onyx {
             virtual void Shutdown() = 0;
 
             virtual OnyxResult Present(); 
+
+
+            virtual void Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos); 
 
             virtual void CreateSwapchain(Window* pWindow); 
 
@@ -33,6 +37,8 @@ namespace Onyx {
             virtual OnyxResult SignalFence(Fence& fence, const uint64_t value) ;
             virtual OnyxResult WaitForFences(const Fence* const pFences, const uint32_t count, const uint64_t* pValues, const uint64_t timeout, const bool waitForAll = true) ; 
 
+            virtual OnyxResult CreateQueue(GPUQueue* pQueue, EQueueType type);
+            virtual void DestroyQueue(GPUQueue& queue);
 
         };
     }
