@@ -10,6 +10,7 @@
 #include "../GPUDevice.h" 
 #include "vk_mem_alloc.h"
 #include <vulkan/vulkan.h> 
+#include <unordered_map>
 
 namespace Onyx {
     namespace Graphics {
@@ -41,6 +42,10 @@ namespace Onyx {
 
                 OnyxResult CreateQueue(GPUQueue* pQueue, EQueueType type) override; 
                 void DestroyQueue(GPUQueue& queue) override;
+
+                CommandBuffer AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type) override;
+                void ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd) override;
+
 
 
             private:
@@ -96,6 +101,7 @@ namespace Onyx {
                 VkFence m_fFrameReady; 
                 VkSemaphore m_BinarySemaphore; 
 
+                std::unordered_map<uint32_t, uint32_t> m_AllocatedQueueCounts;
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;
                 VkQueue m_Queue;

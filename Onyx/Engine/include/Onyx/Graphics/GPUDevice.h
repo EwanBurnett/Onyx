@@ -40,6 +40,9 @@ namespace Onyx {
             virtual OnyxResult CreateQueue(GPUQueue* pQueue, EQueueType type);
             virtual void DestroyQueue(GPUQueue& queue);
 
+            virtual CommandBuffer AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type);
+            virtual void ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd);
+
         };
     }
 }

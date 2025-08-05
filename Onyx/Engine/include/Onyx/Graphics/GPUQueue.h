@@ -9,6 +9,12 @@
 namespace Onyx{
     namespace Graphics{
 
+        //TODO: CommandBuffer.h
+        enum class ECommandBufferType{
+            //TODO: Populate command buffer types!
+            ECommandBufferType_MAX
+        };
+
         struct CommandBuffer{
             VkCommandBuffer _commandBuffer;
         };
@@ -29,17 +35,20 @@ namespace Onyx{
             QUEUE_TYPE_GRAPHICS, 
             QUEUE_TYPE_TRANSFER, 
             QUEUE_TYPE_COMPUTE,
+            EQueueType_MAX
         };
 
         class GPUQueue{
         public:
             GPUQueue(); 
 
+            //TODO: Queue Names...
             void Create(GPUDevice* pDevice, EQueueType type); 
             void Submit(GPUDevice* pDevice, const uint32_t submitCount, SubmitInfo** ppSubmitInfos); 
 
-            CommandBuffer GetCommandBuffer(); 
-            void ResetCommandBuffer(CommandBuffer& cmd); 
+            CommandBuffer GetCommandBuffer(GPUDevice* pDevice, ECommandBufferType type); 
+            void ResetCommandBuffer(GPUDevice* pDevice, CommandBuffer& cmd); 
+            //void ResetCommandPool(GPUDevice* pDevice, )//TODO: CommandPool.h
             
             union{
                 struct{

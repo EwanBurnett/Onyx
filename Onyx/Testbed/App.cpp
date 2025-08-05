@@ -85,12 +85,38 @@ void App::Init() {
         Onyx::Utility::Log::Debug("Finished Waiting!\n");
 
         Onyx::Graphics::GPUQueue queue = {};
-        m_Device->CreateQueue(&queue, Onyx::Graphics::EQueueType::QUEUE_TYPE_GRAPHICS); 
+        //TODO: Testing queue creation...
+        for(int i = 0; i < 100; i++)
+        m_Device->CreateQueue(&queue, Onyx::Graphics::EQueueType::QUEUE_TYPE_TRANSFER); 
 
+        //TODO: API Consistent overload...
+        Onyx::Graphics::CommandBuffer cmd = queue.GetCommandBuffer(m_Device, Onyx::Graphics::ECommandBufferType::ECommandBufferType_MAX); 
         
+        /*
+        cmd.Begin(); 
+
+        DoWork(cmd); //...
+
+        cmd.End(); 
+        */
+
+        VkCommandBufferBeginInfo beginInfo = {}; 
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; 
+        beginInfo.pNext = nullptr;
+        beginInfo.pInheritanceInfo = nullptr;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(cmd._commandBuffer, &beginInfo); 
+
+
+        //TODO: Pipelines!!!
+        //vkCmdDispatch(cmd._commandBuffer, 1, 1, 1);
+
+        vkEndCommandBuffer(cmd._commandBuffer);
+
         Onyx::Graphics::SubmitInfo info = {}; 
-        info.commandBufferCount = 0; 
-        info.pCommandBuffers = nullptr; 
+        info.commandBufferCount = 1; 
+        info.pCommandBuffers = &cmd; 
         info.waitFenceCount = 1; 
         uint64_t waitValues = 10; 
         info.pWaitValues = &waitValues; 
@@ -107,10 +133,11 @@ void App::Init() {
         };
         queue.Submit(m_Device, 1, infos); 
 
-        fence.Wait(m_Device, 100); 
+        fence.Wait(m_Device, 100, 500000000); 
             
 
         Onyx::Utility::Log::Debug("Finished Work!\n");
+        queue.ResetCommandBuffer(m_Device, cmd); 
 
         m_Device->DestroyQueue(queue); 
         m_Device->DestroyFence(fence);
@@ -169,8 +196,8 @@ bool App::PollEvents() {
 
 void App::Update() {
     //Onyx::Utility::Log::Debug("Update!\n");
-    if (m_IsInitialized) {
         /*
+    if (m_IsInitialized) {
         Onyx::OnyxResult res = m_Device->Present();
         if (res == Onyx::OnyxResult::ONYX_OUT_OF_DATE) {
             while (m_Window.GetWidth() == 0 || m_Window.GetHeight() == 0) {
@@ -179,6 +206,6 @@ void App::Update() {
             }
             m_Device->CreateSwapchain(&m_Window); 
         }
-        */
     }
+        */
 }

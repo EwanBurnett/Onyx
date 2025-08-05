@@ -265,8 +265,6 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(GPUQueue* pQueue, const ui
         submitInfos[i] = info; 
     }
 
-    printf("Semaphore %x\n", submitInfos[0].pWaitSemaphores[0]);
-
     VkResult res = vkQueueSubmit(pQueue->_queue, submitInfos.size(), submitInfos.data(), VK_NULL_HANDLE);
 }
 
@@ -649,9 +647,84 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const F
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue* pQueue, EQueueType type){
 
-    //TODO: Store these in a member variable based on queue types???
     uint32_t queueIndex = 0u; 
     uint32_t queueFamilyIndex = 0u; 
+
+    uint32_t maxQueueCount = -1; 
+
+
+    //TODO: Better queue searching! Search all potential queues, instead of just returning the first one found!
+    auto FindQueueFamilyIndex = [](VkPhysicalDevice physicalDevice, uint32_t flags, uint32_t* pMaxQueueCount) -> uint32_t {
+
+        uint32_t propCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, nullptr);
+        std::vector<VkQueueFamilyProperties> properties(propCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, properties.data());
+
+        uint32_t index = 0;
+        for (const auto& p : properties) {
+
+            //if(p.queueCount > m_AllocatedQueueCounts[index]){
+            /*
+            if(m_AllocatedQueueCounts[index] <= p.queueCount){
+                index++; 
+                continue; 
+            }
+            */
+
+
+            static std::unordered_map<uint32_t, uint32_t> allocatedQueues; 
+
+                if (p.queueFlags & flags) {
+                    if(allocatedQueues.find(index) == allocatedQueues.end()){
+                        allocatedQueues[index] = 0;
+                    }
+
+                    if(allocatedQueues[index] >= p.queueCount){
+                        index++; 
+                        continue; 
+                    }
+                    else{
+                        allocatedQueues[index]++; 
+                    printf("Found Queue idx = %d, flags = %x, count = %d\n", index, p.queueFlags, p.queueCount);
+                    *pMaxQueueCount = p.queueCount;
+                    return index;
+                    
+
+                }
+            }
+            index++;
+        }
+
+        return -1;
+        };
+
+    uint32_t flags = 0u; 
+    switch(type){
+        case Onyx::Graphics::EQueueType::QUEUE_TYPE_COMPUTE:
+            flags |= VK_QUEUE_COMPUTE_BIT;
+            break; 
+        case Onyx::Graphics::EQueueType::QUEUE_TYPE_GRAPHICS:
+            flags |= VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT; 
+            break; 
+        case Onyx::Graphics::EQueueType::QUEUE_TYPE_TRANSFER:
+            flags |= VK_QUEUE_TRANSFER_BIT; 
+            break; 
+        default: 
+            break; 
+    };
+
+    queueFamilyIndex = FindQueueFamilyIndex(m_PhysicalDevice, flags, &maxQueueCount);
+
+    uint32_t& allocatedQueueCount = m_AllocatedQueueCounts[queueFamilyIndex];
+    queueIndex = allocatedQueueCount; 
+    
+    if(allocatedQueueCount >= maxQueueCount || queueFamilyIndex == VK_QUEUE_FAMILY_IGNORED){
+        Utility::Log::Warning("Unable to allocate Queue %d from family %d, with max queue count %d! (flags = %x)\n", queueIndex, queueFamilyIndex, maxQueueCount, flags);
+        return OnyxResult::ONYX_FAILED; 
+    }
+
+    allocatedQueueCount++; 
 
     VkDeviceQueueInfo2 queueInfo = {}; 
     queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2; 
@@ -676,6 +749,28 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue*
 
 void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyQueue(GPUQueue& queue){
 
+}
+
+Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type){
+    CommandBuffer cmd = {}; 
+
+    VkCommandBufferAllocateInfo allocInfo = {}; 
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO; 
+    allocInfo.pNext = nullptr; 
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  //TODO: Support secondary command buffers
+    allocInfo.commandBufferCount = 1; 
+    allocInfo.commandPool = pQueue->_commandPool; 
+
+    VkResult res = vkAllocateCommandBuffers(m_Device, &allocInfo, &cmd._commandBuffer);
+    if(res != VK_SUCCESS){
+        Utility::Log::Warning("Failed to allocate Command Buffer!\n"); 
+    }
+
+    return cmd;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd){
+    vkResetCommandBuffer(cmd._commandBuffer, 0u); 
 }
 
 
@@ -934,7 +1029,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
         }
     }
 
-    auto FindGraphicsQueueFamilyIndex = [](VkPhysicalDevice physicalDevice) -> uint32_t {
+    //TODO: Open connections to ALL device queues!
+    auto FindGraphicsQueueFamilyIndex = [](VkPhysicalDevice physicalDevice, uint32_t* queueCount) -> uint32_t {
 
         uint32_t propCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &propCount, nullptr);
@@ -945,6 +1041,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
         for (const auto& p : properties) {
 
             if (p.queueFlags & VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT) {
+                *queueCount = p.queueCount; 
                 return index;
             }
             index++;
@@ -953,7 +1050,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
         return 0;
         };
 
-    m_QueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_PhysicalDevice);
+    uint32_t queueCount = 0; 
+    m_QueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_PhysicalDevice, &queueCount);
 
     //Enable device features
     VkPhysicalDeviceVulkan12Features vulkan1_2features = {};
@@ -969,15 +1067,33 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     deviceFeatures.pNext = &vulkan1_2features;
     deviceFeatures.features = requiredFeatures;
 
-    //We want one Graphics queue
+    //We want at least one Graphics queue
     float priority = 1.0f;
-    VkDeviceQueueCreateInfo queueCreateInfo = {};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.pNext = nullptr;
-    queueCreateInfo.flags = 0;
-    queueCreateInfo.queueCount = 1;
-    queueCreateInfo.queueFamilyIndex = m_QueueFamilyIndex;
-    queueCreateInfo.pQueuePriorities = &priority;
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos; 
+    {
+        uint32_t propCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &propCount, nullptr);
+        std::vector<VkQueueFamilyProperties> properties(propCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &propCount, properties.data());
+
+        uint32_t index = 0;
+        for (const auto& p : properties) {
+
+            VkDeviceQueueCreateInfo queueCreateInfo = {};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.pNext = nullptr;
+            queueCreateInfo.flags = 0;
+            queueCreateInfo.queueCount = p.queueCount;
+            queueCreateInfo.queueFamilyIndex = index;
+            queueCreateInfo.pQueuePriorities = &priority;
+
+
+            queueCreateInfos.push_back(queueCreateInfo);
+
+            index++;
+        }
+    }
 
 
     //Create the Device
@@ -987,8 +1103,8 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     deviceCreateInfo.flags = 0;
     deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    deviceCreateInfo.queueCreateInfoCount = 1;
-    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
+    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
     deviceCreateInfo.enabledLayerCount = 0;
     deviceCreateInfo.ppEnabledLayerNames = nullptr;
     deviceCreateInfo.pEnabledFeatures = nullptr;// &m_pInitInfo->requiredFeatures;

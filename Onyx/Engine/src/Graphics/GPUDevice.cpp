@@ -57,11 +57,20 @@ Onyx::OnyxResult Onyx::Graphics::GPUDevice::WaitForFences(const Fence* const pFe
 }
 
 Onyx::OnyxResult Onyx::Graphics::GPUDevice::CreateQueue(GPUQueue* pQueue, EQueueType type){
-
+    return OnyxResult::ONYX_NOT_IMPLEMENTED; 
 }
 
 void Onyx::Graphics::GPUDevice::DestroyQueue(GPUQueue& queue){
 
 }
+
+Onyx::Graphics::CommandBuffer Onyx::Graphics::GPUDevice::AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type){
+    return {}; 
+}
+
+void Onyx::Graphics::GPUDevice::ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd){
+
+}
+
 
 
