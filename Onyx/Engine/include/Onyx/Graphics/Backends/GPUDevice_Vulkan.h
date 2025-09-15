@@ -19,11 +19,31 @@ namespace Onyx {
             public:
                 GPUDevice_Vulkan();
 
+                //TODO: REMOVE THIS!!!
+                VkInstance GetVKInstance() const {
+                    return m_Instance; 
+                }
+
+                VkDevice GetVKDevice() const {
+                    return m_Device;
+                }
+
+                std::vector<VkImageView> GetVKSwapchainImageViews() const {
+                    return m_SwapchainImageViews; 
+                }
+
+                VkFormat GetVkSwapchainFormat() const {
+                    return m_SwapchainFormat; 
+                }
+
                 void Init(Window* pWindow) override;
                 void Shutdown() override;
 
-                OnyxResult Present() override; 
+                uint32_t GetSwapchainImageIndex() override; 
+                OnyxResult Present(const uint32_t idx) override; 
 
+                void Submit(SubmitInfo* pSubmitInfo) override;
+                void Submit(const uint32_t submitCount, SubmitInfo** ppSubmitInfos) override; 
                 void Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos) override;
 
                 void CreateSwapchain(Window* pWindow) override;
@@ -43,9 +63,17 @@ namespace Onyx {
                 OnyxResult CreateQueue(GPUQueue* pQueue, EQueueType type) override; 
                 void DestroyQueue(GPUQueue& queue) override;
 
+                CommandBuffer AllocateCommandBuffer(ECommandBufferType type) override; 
                 CommandBuffer AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type) override;
+                CommandBuffer AllocateCommandBuffers(const uint32_t count, ECommandBufferType type) override; 
+                CommandBuffer AllocateCommandBuffers(GPUQueue* pQueue, const uint32_t count, ECommandBufferType type) override;
+
                 void ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd) override;
 
+                std::vector<Texture> GetSwapchainImages() override; 
+
+                OnyxResult MapBufferMemory(const Buffer& buffer, void** ppData) override; 
+                OnyxResult UnmapBufferMemory(const Buffer& buffer) override; 
 
 
             private:
@@ -62,7 +90,7 @@ namespace Onyx {
 
                 void DestroySwapchain();
 
-                void CreateVkFence(VkFence* pFence, const char* name); 
+                void CreateVkFence(VkFence* pFence, bool createSignaled, const char* name); 
                 void DestroyVkFence(VkFence& fence); 
 
                 void CreateBinarySemaphore(VkSemaphore* semaphore, const char* name); 
@@ -100,8 +128,10 @@ namespace Onyx {
 
                 VkFence m_fFrameReady; 
                 VkSemaphore m_BinarySemaphore; 
+                VkSemaphore m_ImageAvailableSemaphore; 
 
                 std::unordered_map<uint32_t, uint32_t> m_AllocatedQueueCounts;
+
                 //TODO: Queue Abstraction + Multiple Queues
                 uint32_t m_QueueFamilyIndex;
                 VkQueue m_Queue;

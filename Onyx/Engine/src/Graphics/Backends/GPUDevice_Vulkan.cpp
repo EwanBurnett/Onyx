@@ -34,6 +34,7 @@ Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GPUDevice_Vulkan()
     m_SwapchainImageIndex = 0u;
     m_fFrameReady = VK_NULL_HANDLE;
     m_BinarySemaphore = VK_NULL_HANDLE;
+    m_ImageAvailableSemaphore = VK_NULL_HANDLE;
 
     m_EnableDebugUtils = false;
 
@@ -69,6 +70,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
     //TODO: Optional extensions!
     deviceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
@@ -127,7 +129,9 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Init(Window* pWindow)
 
 
     CreateBinarySemaphore(&m_BinarySemaphore, "Binary Semaphore");
-    CreateVkFence(&m_fFrameReady, "Render Fence");
+    CreateBinarySemaphore(&m_ImageAvailableSemaphore, "Image Available Semaphore");
+
+    CreateVkFence(&m_fFrameReady, true, "Render Fence");
     {
         if (m_EnableDebugUtils) {
             VkDebugUtilsObjectNameInfoEXT nameInfo = {};
@@ -167,6 +171,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
     Utility::Log::Message("Destroying Vulkan GPUDevice...\n");
     vkDeviceWaitIdle(m_Device);
 
+    DestroyBinarySemaphore(m_ImageAvailableSemaphore);
     DestroyBinarySemaphore(m_BinarySemaphore);
     DestroyVkFence(m_fFrameReady);
 
@@ -178,19 +183,30 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Shutdown()
     DestroyInstance();
 }
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
+uint32_t Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GetSwapchainImageIndex() {
+    uint32_t imageIdx = -1;
+
+    VkResult res = vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX, VK_NULL_HANDLE, m_fFrameReady, &imageIdx);
+    vkWaitForFences(m_Device, 1, &m_fFrameReady, VK_TRUE, UINT64_MAX);
+    vkResetFences(m_Device, 1, &m_fFrameReady);
+
+    return imageIdx;
+}
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present(const uint32_t idx) {
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
     presentInfo.waitSemaphoreCount = 0;
-    presentInfo.pWaitSemaphores = nullptr;
+    presentInfo.pWaitSemaphores = nullptr;//&m_BinarySemaphore; //nullptr;
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &m_Swapchain;
-    presentInfo.pImageIndices = &m_SwapchainImageIndex;
+    presentInfo.pImageIndices = &idx;
     presentInfo.pResults = nullptr;
 
     VkResult res = vkQueuePresentKHR(m_Queue, &presentInfo);
+
 
     //Out of date swapchain; Recreate!
     if (res == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -207,62 +223,163 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Present() {
     return OnyxResult::ONYX_SUCCESS;
 }
 
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(SubmitInfo* pSubmitInfo) {
+    VkTimelineSemaphoreSubmitInfo timelineInfos;
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos) {
+    std::vector<VkSemaphore> waitSemaphores;
+    std::vector<VkSemaphore> signalSemaphores;
+    std::vector<VkCommandBuffer> commandBuffers;
 
-    std::vector<VkTimelineSemaphoreSubmitInfo> timelineInfos; 
-    timelineInfos.resize(submitCount); 
+    for (uint32_t j = 0; j < pSubmitInfo->waitFenceCount; j++) {
+        waitSemaphores.push_back(pSubmitInfo->pWaitFences[j].Get()._fence);
+    }
+
+    for (uint32_t j = 0; j < pSubmitInfo->signalFenceCount; j++) {
+        signalSemaphores.push_back(pSubmitInfo->pSignalFences[j].Get()._fence);
+    }
+
+    for (uint32_t j = 0; j < pSubmitInfo->commandBufferCount; j++) {
+        commandBuffers.push_back(pSubmitInfo->pCommandBuffers[j]._commandBuffer);
+    }
+
+
+    VkTimelineSemaphoreSubmitInfo timelineInfo = {};
+    timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timelineInfo.pNext = nullptr;
+    timelineInfo.waitSemaphoreValueCount = waitSemaphores.size();
+    timelineInfo.pWaitSemaphoreValues = pSubmitInfo->pWaitValues;
+    timelineInfo.signalSemaphoreValueCount = signalSemaphores.size();
+    timelineInfo.pSignalSemaphoreValues = pSubmitInfo->pSignalValues;
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = &timelineInfo;
+    submitInfo.waitSemaphoreCount = waitSemaphores.size();
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.signalSemaphoreCount = signalSemaphores.size();
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
+    submitInfo.commandBufferCount = commandBuffers.size();
+    submitInfo.pCommandBuffers = commandBuffers.data();
+    submitInfo.pWaitDstStageMask = pSubmitInfo->pWaitDstStageMask;
+
+
+    VkResult res = vkQueueSubmit(m_Queue, 1, &submitInfo, VK_NULL_HANDLE);
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(const uint32_t submitCount, SubmitInfo** ppSubmitInfos) {
+    std::vector<VkTimelineSemaphoreSubmitInfo> timelineInfos;
+    timelineInfos.resize(submitCount);
 
     std::vector<VkSubmitInfo> submitInfos;
-    submitInfos.resize(submitCount); 
-    
-    std::vector<std::vector<VkSemaphore>> waitSemaphores; 
+    submitInfos.resize(submitCount);
+
+    std::vector<std::vector<VkSemaphore>> waitSemaphores;
     waitSemaphores.resize(submitCount);
 
-    std::vector<std::vector<VkSemaphore>> signalSemaphores; 
-    signalSemaphores.resize(submitCount); 
+    std::vector<std::vector<VkSemaphore>> signalSemaphores;
+    signalSemaphores.resize(submitCount);
 
-    std::vector<std::vector<VkCommandBuffer>> commandBuffers; 
-    commandBuffers.resize(submitCount); 
+    std::vector<std::vector<VkCommandBuffer>> commandBuffers;
+    commandBuffers.resize(submitCount);
 
-    for(uint32_t i = 0; i < submitCount; i++){
+    for (uint32_t i = 0; i < submitCount; i++) {
 
         SubmitInfo& submitInfo = *ppSubmitInfos[i];
 
-        for(uint32_t j = 0; j < submitInfo.waitFenceCount; j++){
-            waitSemaphores[i].push_back(submitInfo.pWaitFences[j].Get()._fence); 
+        for (uint32_t j = 0; j < submitInfo.waitFenceCount; j++) {
+            waitSemaphores[i].push_back(submitInfo.pWaitFences[j].Get()._fence);
         }
 
-        for(uint32_t j = 0; j < submitInfo.signalFenceCount; j++){
-            signalSemaphores[i].push_back(submitInfo.pSignalFences[j].Get()._fence); 
+        for (uint32_t j = 0; j < submitInfo.signalFenceCount; j++) {
+            signalSemaphores[i].push_back(submitInfo.pSignalFences[j].Get()._fence);
         }
 
-        for(uint32_t j = 0; j < submitInfo.commandBufferCount; j++){
-            commandBuffers[i].push_back(submitInfo.pCommandBuffers[j]._commandBuffer); 
+        for (uint32_t j = 0; j < submitInfo.commandBufferCount; j++) {
+            commandBuffers[i].push_back(submitInfo.pCommandBuffers[j]._commandBuffer);
         }
 
 
-        VkTimelineSemaphoreSubmitInfo timelineInfo = {}; 
-        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO; 
-        timelineInfo.pNext = nullptr; 
-        timelineInfo.waitSemaphoreValueCount = waitSemaphores[i].size();  
-        timelineInfo.pWaitSemaphoreValues = submitInfo.pWaitValues; 
-        timelineInfo.signalSemaphoreValueCount = signalSemaphores[i].size(); 
+        VkTimelineSemaphoreSubmitInfo timelineInfo = {};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext = nullptr;
+        timelineInfo.waitSemaphoreValueCount = waitSemaphores[i].size();
+        timelineInfo.pWaitSemaphoreValues = submitInfo.pWaitValues;
+        timelineInfo.signalSemaphoreValueCount = signalSemaphores[i].size();
         timelineInfo.pSignalSemaphoreValues = submitInfo.pSignalValues;
-        timelineInfos[i] = timelineInfo; 
+        timelineInfos[i] = timelineInfo;
 
-        VkSubmitInfo info = {}; 
-        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO; 
-        info.pNext = &timelineInfo; 
-        info.waitSemaphoreCount = submitInfo.waitFenceCount; 
-        info.pWaitSemaphores = waitSemaphores[i].data(); 
+        VkSubmitInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.pNext = &timelineInfo;
+        info.waitSemaphoreCount = submitInfo.waitFenceCount;
+        info.pWaitSemaphores = waitSemaphores[i].data();
         info.signalSemaphoreCount = submitInfo.signalFenceCount;
-        info.pSignalSemaphores = signalSemaphores[i].data(); 
-        info.commandBufferCount = submitInfo.commandBufferCount; 
-        info.pCommandBuffers = commandBuffers[i].data(); 
-        info.pWaitDstStageMask = submitInfo.pWaitDstStageMask; 
+        info.pSignalSemaphores = signalSemaphores[i].data();
+        info.commandBufferCount = submitInfo.commandBufferCount;
+        info.pCommandBuffers = commandBuffers[i].data();
+        info.pWaitDstStageMask = submitInfo.pWaitDstStageMask;
 
-        submitInfos[i] = info; 
+        submitInfos[i] = info;
+    }
+
+    VkResult res = vkQueueSubmit(m_Queue, submitInfos.size(), submitInfos.data(), VK_NULL_HANDLE);
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::Submit(GPUQueue* pQueue, const uint32_t submitCount, SubmitInfo** ppSubmitInfos) {
+
+    std::vector<VkTimelineSemaphoreSubmitInfo> timelineInfos;
+    timelineInfos.resize(submitCount);
+
+    std::vector<VkSubmitInfo> submitInfos;
+    submitInfos.resize(submitCount);
+
+    std::vector<std::vector<VkSemaphore>> waitSemaphores;
+    waitSemaphores.resize(submitCount);
+
+    std::vector<std::vector<VkSemaphore>> signalSemaphores;
+    signalSemaphores.resize(submitCount);
+
+    std::vector<std::vector<VkCommandBuffer>> commandBuffers;
+    commandBuffers.resize(submitCount);
+
+    for (uint32_t i = 0; i < submitCount; i++) {
+
+        SubmitInfo& submitInfo = *ppSubmitInfos[i];
+
+        for (uint32_t j = 0; j < submitInfo.waitFenceCount; j++) {
+            waitSemaphores[i].push_back(submitInfo.pWaitFences[j].Get()._fence);
+        }
+
+        for (uint32_t j = 0; j < submitInfo.signalFenceCount; j++) {
+            signalSemaphores[i].push_back(submitInfo.pSignalFences[j].Get()._fence);
+        }
+
+        for (uint32_t j = 0; j < submitInfo.commandBufferCount; j++) {
+            commandBuffers[i].push_back(submitInfo.pCommandBuffers[j]._commandBuffer);
+        }
+
+
+        VkTimelineSemaphoreSubmitInfo timelineInfo = {};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext = nullptr;
+        timelineInfo.waitSemaphoreValueCount = waitSemaphores[i].size();
+        timelineInfo.pWaitSemaphoreValues = submitInfo.pWaitValues;
+        timelineInfo.signalSemaphoreValueCount = signalSemaphores[i].size();
+        timelineInfo.pSignalSemaphoreValues = submitInfo.pSignalValues;
+        timelineInfos[i] = timelineInfo;
+
+        VkSubmitInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.pNext = &timelineInfo;
+        info.waitSemaphoreCount = submitInfo.waitFenceCount;
+        info.pWaitSemaphores = waitSemaphores[i].data();
+        info.signalSemaphoreCount = submitInfo.signalFenceCount;
+        info.pSignalSemaphores = signalSemaphores[i].data();
+        info.commandBufferCount = submitInfo.commandBufferCount;
+        info.pCommandBuffers = commandBuffers[i].data();
+        info.pWaitDstStageMask = submitInfo.pWaitDstStageMask;
+
+        submitInfos[i] = info;
     }
 
     VkResult res = vkQueueSubmit(pQueue->_queue, submitInfos.size(), submitInfos.data(), VK_NULL_HANDLE);
@@ -341,6 +458,19 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyBuffer(Buffer& buffer) {
     buffer._buffer = VK_NULL_HANDLE;
 }
 
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::MapBufferMemory(const Buffer& buffer, void** ppData) {
+
+    VkResult res = vmaMapMemory(m_VMAAllocator, buffer._alloc, ppData);
+    if (res != VK_SUCCESS) {
+        return OnyxResult::ONYX_FAILED;
+    }
+    return OnyxResult::ONYX_SUCCESS;
+}
+
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::UnmapBufferMemory(const Buffer& buffer) {
+    vmaUnmapMemory(m_VMAAllocator, buffer._alloc);
+    return OnyxResult::ONYX_SUCCESS;
+}
 
 Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateTexture(const TextureCreateInfo* pCreateInfo, Texture* pTexture) {
     std::unique_lock<std::shared_mutex> lck(pTexture->_Lock);
@@ -645,12 +775,12 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::WaitForFences(const F
 }
 
 
-Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue* pQueue, EQueueType type){
+Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue* pQueue, EQueueType type) {
 
-    uint32_t queueIndex = 0u; 
-    uint32_t queueFamilyIndex = 0u; 
+    uint32_t queueIndex = 0u;
+    uint32_t queueFamilyIndex = 0u;
 
-    uint32_t maxQueueCount = -1; 
+    uint32_t maxQueueCount = -1;
 
 
     //TODO: Better queue searching! Search all potential queues, instead of just returning the first one found!
@@ -667,29 +797,29 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue*
             //if(p.queueCount > m_AllocatedQueueCounts[index]){
             /*
             if(m_AllocatedQueueCounts[index] <= p.queueCount){
-                index++; 
-                continue; 
+                index++;
+                continue;
             }
             */
 
 
-            static std::unordered_map<uint32_t, uint32_t> allocatedQueues; 
+            static std::unordered_map<uint32_t, uint32_t> allocatedQueues;
 
-                if (p.queueFlags & flags) {
-                    if(allocatedQueues.find(index) == allocatedQueues.end()){
-                        allocatedQueues[index] = 0;
-                    }
+            if (p.queueFlags & flags) {
+                if (allocatedQueues.find(index) == allocatedQueues.end()) {
+                    allocatedQueues[index] = 0;
+                }
 
-                    if(allocatedQueues[index] >= p.queueCount){
-                        index++; 
-                        continue; 
-                    }
-                    else{
-                        allocatedQueues[index]++; 
+                if (allocatedQueues[index] >= p.queueCount) {
+                    index++;
+                    continue;
+                }
+                else {
+                    allocatedQueues[index]++;
                     printf("Found Queue idx = %d, flags = %x, count = %d\n", index, p.queueFlags, p.queueCount);
                     *pMaxQueueCount = p.queueCount;
                     return index;
-                    
+
 
                 }
             }
@@ -699,41 +829,52 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue*
         return -1;
         };
 
-    uint32_t flags = 0u; 
-    switch(type){
-        case Onyx::Graphics::EQueueType::QUEUE_TYPE_COMPUTE:
-            flags |= VK_QUEUE_COMPUTE_BIT;
-            break; 
-        case Onyx::Graphics::EQueueType::QUEUE_TYPE_GRAPHICS:
-            flags |= VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT; 
-            break; 
-        case Onyx::Graphics::EQueueType::QUEUE_TYPE_TRANSFER:
-            flags |= VK_QUEUE_TRANSFER_BIT; 
-            break; 
-        default: 
-            break; 
+    uint32_t flags = 0u;
+    switch (type) {
+    case Onyx::Graphics::EQueueType::QUEUE_TYPE_COMPUTE:
+        flags |= VK_QUEUE_COMPUTE_BIT;
+        break;
+    case Onyx::Graphics::EQueueType::QUEUE_TYPE_GRAPHICS:
+        flags |= VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+        break;
+    case Onyx::Graphics::EQueueType::QUEUE_TYPE_TRANSFER:
+        flags |= VK_QUEUE_TRANSFER_BIT;
+        break;
+    default:
+        break;
     };
 
     queueFamilyIndex = FindQueueFamilyIndex(m_PhysicalDevice, flags, &maxQueueCount);
 
     uint32_t& allocatedQueueCount = m_AllocatedQueueCounts[queueFamilyIndex];
-    queueIndex = allocatedQueueCount; 
-    
-    if(allocatedQueueCount >= maxQueueCount || queueFamilyIndex == VK_QUEUE_FAMILY_IGNORED){
+    queueIndex = allocatedQueueCount;
+
+    if (allocatedQueueCount >= maxQueueCount || queueFamilyIndex == VK_QUEUE_FAMILY_IGNORED) {
         Utility::Log::Warning("Unable to allocate Queue %d from family %d, with max queue count %d! (flags = %x)\n", queueIndex, queueFamilyIndex, maxQueueCount, flags);
-        return OnyxResult::ONYX_FAILED; 
+        return OnyxResult::ONYX_FAILED;
     }
 
-    allocatedQueueCount++; 
+    allocatedQueueCount++;
 
-    VkDeviceQueueInfo2 queueInfo = {}; 
-    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2; 
+    VkDeviceQueueInfo2 queueInfo = {};
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2;
     queueInfo.pNext = nullptr;
-    queueInfo.flags = 0u; 
-    queueInfo.queueIndex = queueIndex; 
-    queueInfo.queueFamilyIndex = queueFamilyIndex; 
+    queueInfo.flags = 0u;
+    queueInfo.queueIndex = queueIndex;
+    queueInfo.queueFamilyIndex = queueFamilyIndex;
 
     vkGetDeviceQueue2(m_Device, &queueInfo, &pQueue->_queue);
+
+    if (m_EnableDebugUtils) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.pNext = nullptr;
+        nameInfo.objectHandle = (uint64_t)pQueue->_queue;
+        nameInfo.objectType = VK_OBJECT_TYPE_QUEUE;
+        nameInfo.pObjectName = "Queue"; //TODO: name param
+
+        GPUDevice_Vulkan::vkSetDebugUtilsObjectNameEXT(m_Device, &nameInfo);
+    }
 
     //Create the Command Pool for this queue. 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {};
@@ -744,33 +885,76 @@ Onyx::OnyxResult Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateQueue(GPUQueue*
 
     vkCreateCommandPool(m_Device, &commandPoolCreateInfo, nullptr, &pQueue->_commandPool);
 
-    return OnyxResult::ONYX_SUCCESS; 
-} 
+    return OnyxResult::ONYX_SUCCESS;
+}
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyQueue(GPUQueue& queue){
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroyQueue(GPUQueue& queue) {
 
 }
 
-Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type){
-    CommandBuffer cmd = {}; 
+Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffer(ECommandBufferType type) {
+    return AllocateCommandBuffers(1, type);
+}
 
-    VkCommandBufferAllocateInfo allocInfo = {}; 
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO; 
-    allocInfo.pNext = nullptr; 
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  //TODO: Support secondary command buffers
-    allocInfo.commandBufferCount = 1; 
-    allocInfo.commandPool = pQueue->_commandPool; 
+Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffer(GPUQueue* pQueue, ECommandBufferType type) {
+    return AllocateCommandBuffers(pQueue, 1, type);
+}
+
+Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffers(const uint32_t count, ECommandBufferType type)
+{
+    CommandBuffer cmd = {};
+
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;
+    switch (type) {
+    case ECommandBufferType::SECONDARY:
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        break;
+    case ECommandBufferType::PRIMARY:
+    default:
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        break;
+    }
+    allocInfo.commandBufferCount = count;
+    allocInfo.commandPool = m_CommandPool;
 
     VkResult res = vkAllocateCommandBuffers(m_Device, &allocInfo, &cmd._commandBuffer);
-    if(res != VK_SUCCESS){
-        Utility::Log::Warning("Failed to allocate Command Buffer!\n"); 
+    if (res != VK_SUCCESS) {
+        Utility::Log::Warning("Failed to allocate Command Buffer!\n");
     }
 
     return cmd;
 }
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd){
-    vkResetCommandBuffer(cmd._commandBuffer, 0u); 
+Onyx::Graphics::CommandBuffer Onyx::Graphics::Vulkan::GPUDevice_Vulkan::AllocateCommandBuffers(GPUQueue* pQueue, const uint32_t count, ECommandBufferType type) {
+    CommandBuffer cmd = {};
+
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;
+    switch (type) {
+    case ECommandBufferType::SECONDARY:
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        break;
+    case ECommandBufferType::PRIMARY:
+    default:
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        break;
+    }
+    allocInfo.commandBufferCount = count;
+    allocInfo.commandPool = pQueue->_commandPool;
+
+    VkResult res = vkAllocateCommandBuffers(m_Device, &allocInfo, &cmd._commandBuffer);
+    if (res != VK_SUCCESS) {
+        Utility::Log::Warning("Failed to allocate Command Buffer!\n");
+    }
+
+    return cmd;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::ResetCommandBuffer(GPUQueue* pQueue, CommandBuffer& cmd) {
+    vkResetCommandBuffer(cmd._commandBuffer, 0u);
 }
 
 
@@ -877,7 +1061,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateInstance(const bool enableV
     applicationInfo.applicationVersion = applicationVersion;
     applicationInfo.pEngineName = "Onyx-Engine";
     applicationInfo.engineVersion = VK_MAKE_API_VERSION(0, Onyx::Verison::kMajor, Onyx::Verison::kMinor, Onyx::Verison::kIssue);
-    applicationInfo.apiVersion = VK_API_VERSION_1_2;
+    applicationInfo.apiVersion = VK_API_VERSION_1_3;
 
     //Optionally create a Debug messenger
     VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
@@ -1041,7 +1225,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
         for (const auto& p : properties) {
 
             if (p.queueFlags & VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT) {
-                *queueCount = p.queueCount; 
+                *queueCount = p.queueCount;
                 return index;
             }
             index++;
@@ -1050,7 +1234,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
         return 0;
         };
 
-    uint32_t queueCount = 0; 
+    uint32_t queueCount = 0;
     m_QueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_PhysicalDevice, &queueCount);
 
     //Enable device features
@@ -1062,20 +1246,27 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
     vulkan1_2features.descriptorIndexing = VK_TRUE;
     vulkan1_2features.timelineSemaphore = VK_TRUE;
 
+    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {};
+    dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+    dynamicRenderingFeatures.pNext = &vulkan1_2features;
+    dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+
     VkPhysicalDeviceFeatures2 deviceFeatures = {};
     deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    deviceFeatures.pNext = &vulkan1_2features;
+    deviceFeatures.pNext = &dynamicRenderingFeatures;
     deviceFeatures.features = requiredFeatures;
 
     //We want at least one Graphics queue
-    float priority = 1.0f;
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos; 
+    std::vector<std::vector<float>> priorities;
+
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     {
         uint32_t propCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &propCount, nullptr);
         std::vector<VkQueueFamilyProperties> properties(propCount);
         vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &propCount, properties.data());
+
 
         uint32_t index = 0;
         for (const auto& p : properties) {
@@ -1086,7 +1277,12 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateDevice(const std::vector<co
             queueCreateInfo.flags = 0;
             queueCreateInfo.queueCount = p.queueCount;
             queueCreateInfo.queueFamilyIndex = index;
-            queueCreateInfo.pQueuePriorities = &priority;
+            std::vector<float> queuePriorities(p.queueCount);
+            for (int i = 0; i < p.queueCount; i++) {
+                queuePriorities[i] = 1.0f;
+            }
+            priorities.push_back(queuePriorities);
+            queueCreateInfo.pQueuePriorities = priorities.back().data();
 
 
             queueCreateInfos.push_back(queueCreateInfo);
@@ -1193,7 +1389,7 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateSwapchain(Window* pWindow)
 
     VkPresentModeKHR presentMode = [](std::vector<VkPresentModeKHR>& presentModes) {
 
-        VkPresentModeKHR selectedMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        VkPresentModeKHR selectedMode = VK_PRESENT_MODE_FIFO_KHR; //VK_PRESENT_MODE_IMMEDIATE_KHR;
         //TODO: Revisit Present Mode Selection...
         /*
         for (const auto& mode : presentModes) {
@@ -1291,12 +1487,24 @@ void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::DestroySwapchain()
     m_SwapchainImageViews.clear();
 }
 
-void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVkFence(VkFence* pFence, const char* name)
+std::vector<Onyx::Graphics::Texture> Onyx::Graphics::Vulkan::GPUDevice_Vulkan::GetSwapchainImages()
+{
+    //TODO: This is a bit of a hack, but it's necessary for image layout transitions... 
+    //TODO: Render Target abstraction?? 
+    std::vector<Texture> swapchainImages(m_SwapchainImages.size());
+
+    for (int i = 0; i < m_SwapchainImages.size(); i++) {
+        swapchainImages[i]._image = m_SwapchainImages[i];
+    }
+    return swapchainImages;
+}
+
+void Onyx::Graphics::Vulkan::GPUDevice_Vulkan::CreateVkFence(VkFence* pFence, bool createSignaled, const char* name)
 {
     VkFenceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     createInfo.pNext = nullptr;
-    createInfo.flags = 0u;// VK_FENCE_CREATE_SIGNALED_BIT;
+    createInfo.flags = createSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0u;
 
     vkCreateFence(m_Device, &createInfo, nullptr, pFence);
 

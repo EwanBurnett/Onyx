@@ -3,7 +3,7 @@
 
 namespace Onyx{
     enum class OnyxResult{
-        ONYX_SUCCESS = 0, 
+        ONYX_SUCCESS = 1, 
         ONYX_FAILED = -1, 
         ONYX_NOT_IMPLEMENTED = -2, 
         ONYX_TIMEOUT = -3, 

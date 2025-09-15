@@ -5,20 +5,11 @@
 #include <cstdint>
 
 #include "Fence.h"
+#include "CommandBuffer.h"
 
 namespace Onyx{
     namespace Graphics{
 
-        //TODO: CommandBuffer.h
-        enum class ECommandBufferType{
-            //TODO: Populate command buffer types!
-            ECommandBufferType_MAX
-        };
-
-        struct CommandBuffer{
-            VkCommandBuffer _commandBuffer;
-        };
-        
         struct SubmitInfo{
             uint32_t commandBufferCount; 
             CommandBuffer* pCommandBuffers;

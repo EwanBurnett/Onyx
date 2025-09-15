@@ -289,7 +289,7 @@ add_library(${PROJECT_NAME} STATIC
   "include/Onyx/Graphics/Fence.h" "src/Graphics/Fence.cpp" 
     "include/Onyx/Graphics/GPUQueue.h"
     "src/Graphics/GPUQueue.cpp"
-  )
+   "include/Onyx/Graphics/CommandBuffer.h" "src/Graphics/CommandBuffer.cpp")
     
 target_link_libraries(${PROJECT_NAME} PUBLIC 
     ${ONYX_ENGINE_LIBRARIES} 
